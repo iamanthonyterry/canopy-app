@@ -34,6 +34,19 @@ A Mac that was set up with the old Python app picks up its settings automaticall
 
 For the Mac mini, turn on *Start listening when the app opens* and *Open at login*, and in System Settings → Energy enable "Prevent automatic sleeping". Then it comes back by itself after reboots and updates.
 
+## Applying configs to devices
+
+Signed in to the website, the app also does jobs an admin queues from the website's **Inventory → Configs** tab
+("Apply to device"). Every few seconds it asks `/api/device-jobs` (with the same campus key) for jobs for its
+campus, sends each one to the device over the local network, and reports back. This works whether or not it is
+transcribing. It only contacts addresses on the local network (private IPv4 ranges or `.local`), and a job the
+site queued but nobody picked up within two minutes is dropped, so nothing fires later by surprise.
+
+- **Blackmagic Videohub** (TCP 9990): applies a text file of `INPUT LABELS:`, `OUTPUT LABELS:` and `VIDEO OUTPUT ROUTING:` blocks. Locks and everything else are refused. A hub whose software has no unit attached is reported as a failure.
+- **Allen & Heath dLive and Avantis** (TCP 51325): recalls a scene already stored on the console (bank select + program change on the console's base MIDI channel). The consoles can't take a file over the network.
+
+Drivers live in `Sources/Transcriber/DeviceAgent.swift`; add the matching driver id in the website's `lib/device-drivers.ts`.
+
 ## Updates
 
 The app updates itself ([Sparkle](https://sparkle-project.org)) from GitHub Releases: it checks every 4 hours, downloads in the

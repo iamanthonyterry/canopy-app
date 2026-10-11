@@ -60,6 +60,8 @@ final class AppModel: ObservableObject {
     private var runTask: Task<Void, Never>?
     private var sender: Sender?
     private var heartbeatTask: Task<Void, Never>?
+    /// Carries out "apply to device" jobs from the website for this campus, whether or not we're transcribing.
+    private var deviceAgent: DeviceAgent?
 
     let updates = UpdateManager()
 
@@ -69,10 +71,19 @@ final class AppModel: ObservableObject {
         loadLanguages()
         updates.model = self
         connectControls()
+        let agent = DeviceAgent(
+            credentials: { [weak self] in await self?.deviceCredentials() ?? ("", "") },
+            onResult: { message in Task { @MainActor in Notifier.post("Device update", message) } }
+        )
+        agent.start()
+        deviceAgent = agent
         Task { @MainActor in await self.pcoStartup() }
         // Resume after a reboot or an update (never pops the "key needed" alert on a fresh install).
         if settings.autoStart && !token.isEmpty { Task { @MainActor in self.start() } }
     }
+
+    /// What the device agent signs in with: the website address and the campus key.
+    func deviceCredentials() -> (url: String, token: String) { (settings.url, token) }
 
     /// Set while the feed to the website is silent or clipping during a service (shown in the menu bar).
     @Published var feedWarning: String? {
