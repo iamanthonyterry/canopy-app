@@ -28,6 +28,12 @@ actor Translator {
         }.sorted { $0.name < $1.name }
     }
 
+    /// Whether a phrase finishes its sentence, so it can be translated as it stands.
+    static func endsSentence(_ text: String) -> Bool {
+        let last = text.reversed().first { !$0.isWhitespace && !"\"'”’)]".contains($0) }
+        return last.map { ".!?…".contains($0) } ?? true
+    }
+
     func availability(of code: String) async -> Availability {
         guard #available(macOS 26, *) else { return .unavailable }
         switch await LanguageAvailability().status(from: Self.english, to: Locale.Language(identifier: code)) {

@@ -21,7 +21,12 @@ actor SpeechEngine {
 
     private var kit: WhisperKit?
 
-    private static let hallucinations: Set<String> = ["thank you", "thank you.", "thanks for watching", "thanks for watching!", "you", "bye", "bye."]
+    /// What Whisper writes for audio it can't make out. Nobody says the first lot from a stage; the courtesies
+    /// are also real things to say, so those are only dropped when the audio doesn't sound like talking.
+    private static let hallucinations: Set<String> = ["thanks for watching", "thanks for watching!"]
+    private static let courtesies: Set<String> = ["thank you", "thank you.", "you", "bye", "bye."]
+    private static let courtesySpeech = 0.6
+    private let gate = SpeechGate()
 
     var isLoaded: Bool { kit != nil }
 
@@ -82,14 +87,16 @@ actor SpeechEngine {
             kit.textDecoder.logitsFilters = []
         }
         let results: [TranscriptionResult] = try await kit.transcribe(audioArray: audio, decodeOptions: options)
-        // Whisper's own rule: only treat a segment as silence when it is both "no speech" and low confidence.
+        // WhisperKit doesn't work out Whisper's "no speech" score (it is always 0), so confidence is all there is.
         let parts = results.flatMap(\.segments)
-            .filter { !($0.noSpeechProb > 0.6 && $0.avgLogprob < -1.0) && $0.avgLogprob > -1.8 }
+            .filter { $0.avgLogprob > -1.8 }
             .map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         let text = parts.joined(separator: " ").trimmingCharacters(in: .whitespaces)
         guard text.contains(where: { $0.isLetter || $0.isNumber }) else { return "" }  // a lone "." is not a phrase
-        return Self.hallucinations.contains(text.lowercased()) ? "" : text
+        if Self.hallucinations.contains(text.lowercased()) { return "" }
+        if Self.courtesies.contains(text.lowercased()), (gate.speechConfidence(audio) ?? 0) < Self.courtesySpeech { return "" }
+        return text
     }
 
     /// True when every word of `text` comes from the prompt.

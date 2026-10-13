@@ -12,7 +12,7 @@ enum FileTest {
                 let engine = SpeechEngine(variant: model ?? (commands ? SpeechEngine.commandVariant : SpeechEngine.transcriptVariant))
                 try await engine.load(progress: { print(String(format: "download %.0f%%", $0 * 100)) }, stage: { print($0) })
                 let seg = Segmenter(minDb: -50, endPause: commands ? 0.3 : 0.5)
-                var phrases = seg.feed(samples: samples)
+                var phrases = seg.feed(samples: samples).map(\.audio)
                 if let tail = seg.flush() { phrases.append(tail) }
                 print("\(phrases.count) phrase(s) detected")
                 var previous = ""

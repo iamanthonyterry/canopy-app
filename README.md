@@ -68,4 +68,5 @@ Test the pipeline without a mixer: `build/Transcriber.app/Contents/MacOS/Transcr
 ## Website side
 
 - `POST /api/transcript` (key-protected) receives text; `/live/<campus>` displays it.
+- With translations on, a phrase that stops mid-sentence is sent in English straight away as `kind: "part"`, and the finished sentence follows as `kind: "whole"` with its translations (after at most three phrases, or six seconds without the rest). English readers see the parts, other languages the whole. The website must be on a version that knows `kind` before the app is updated, or both show.
 - The relay keeps text in the server process's memory, so the site must run as a long-lived server (`next start`, VPS), not serverless hosting like Vercel.

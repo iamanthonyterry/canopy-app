@@ -281,7 +281,7 @@ struct SettingsView: View {
                     }))
                     .disabled(model.settings.translateTo.isEmpty)
                 }
-                if let note = model.translationNote {
+                if let note = model.translationNote ?? model.translationTrouble {
                     Text(note).font(.caption).foregroundStyle(.orange)
                 }
             }
@@ -595,7 +595,7 @@ struct TranscriptView: View {
                 Button("Clear") { model.lines.removeAll() }.controlSize(.small)
             }
             .padding(.horizontal, 10).padding(.top, 10).padding(.bottom, 6)
-            if let note = model.translationNote {
+            if let note = model.translationNote ?? model.translationTrouble {
                 Text(note).font(.caption).foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.bottom, 4)
             }

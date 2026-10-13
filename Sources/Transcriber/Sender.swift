@@ -35,10 +35,13 @@ final class Sender: @unchecked Sendable {
     struct Outgoing: Sendable {
         let text: String
         var translations: [String: String] = [:]  // language code -> text
+        var kind: String?
     }
 
-    func send(_ text: String, translations: [String: String] = [:]) {
-        continuation.yield(Outgoing(text: text, translations: translations))
+    /// `kind` is "part" for a phrase whose sentence isn't finished (English readers see it now, translated
+    /// readers wait), then "whole" for that sentence complete with its translations. Nil for everything else.
+    func send(_ text: String, translations: [String: String] = [:], kind: String? = nil) {
+        continuation.yield(Outgoing(text: text, translations: translations, kind: kind))
     }
 
     /// Tells the website a new session began so it clears the previous session's text. Best effort.
@@ -67,7 +70,7 @@ final class Sender: @unchecked Sendable {
 
     private enum SendError: Error { case http(Int), badURL }
 
-    private func post(_ text: String?, translations: [String: String] = [:], reset: Bool = false) async throws {
+    private func post(_ text: String?, translations: [String: String] = [:], kind: String? = nil, reset: Bool = false) async throws {
         guard let url else { throw SendError.badURL }
         var req = URLRequest(url: url, timeoutInterval: 10)
         req.httpMethod = "POST"
@@ -75,6 +78,7 @@ final class Sender: @unchecked Sendable {
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         var body: [String: Any] = reset ? ["reset": true] : (text.map { ["text": $0] } ?? ["heartbeat": true])
         if !translations.isEmpty { body["translations"] = translations }
+        if let kind { body["kind"] = kind }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, res) = try await URLSession.shared.data(for: req)
         let code = (res as? HTTPURLResponse)?.statusCode ?? 0
@@ -94,7 +98,7 @@ final class Sender: @unchecked Sendable {
             var delay = 1.0
             while !Task.isCancelled {
                 do {
-                    try await post(item.text, translations: item.translations)
+                    try await post(item.text, translations: item.translations, kind: item.kind)
                     if warned {
                         warned = false
                         onStatus("Listening")

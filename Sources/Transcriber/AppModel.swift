@@ -26,6 +26,8 @@ final class AppModel: ObservableObject {
     @Published var pendingUpdate: (() -> Void)?
 
     @Published var translationNote: String?
+    /// Set while a chosen language keeps being left out of phrases (it failed or was too slow).
+    @Published var translationTrouble: String?
     @Published var languages: [TranslationLanguage] = []
     /// Languages waiting for the system's download prompt, one at a time.
     @Published var downloadQueue: [String] = []
@@ -440,11 +442,25 @@ final class AppModel: ObservableObject {
         }
     }
 
-    private func show(_ text: String, translations: [String: String], spoken: Range<Date>) {
+    private func noteTranslationTrouble(_ codes: [String]) {
+        let names = codes.map { code in languages.first { $0.code == code }?.name ?? code }.joined(separator: ", ")
+        let note = codes.isEmpty ? nil : "\(names) isn’t translating: recent phrases went out without it"
+        if note != translationTrouble { translationTrouble = note }
+    }
+
+    /// Adds a line to the transcript, or puts it where `replaced` were (a sentence shown early in parts).
+    @discardableResult
+    private func show(_ text: String, translations: [String: String], spoken: Range<Date>, replacing replaced: [UUID] = []) -> UUID {
         lastText = text
         let line = TranscriptLine(start: spoken.lowerBound, end: spoken.upperBound, text: text, translations: translations)
-        lines.append(line)
-        sessionLog.append(line)
+        func put(into list: inout [TranscriptLine]) {
+            let at = list.firstIndex { replaced.contains($0.id) }
+            list.removeAll { replaced.contains($0.id) }
+            list.insert(line, at: at ?? list.count)
+        }
+        put(into: &lines)
+        put(into: &sessionLog)
+        return line.id
     }
 
     /// Sends the OSC message of every rule whose phrase was just heard, unless a guard holds it back.
@@ -565,15 +581,64 @@ final class AppModel: ObservableObject {
         let gate = settings.speechOnly ? SpeechGate() : nil
         // Translating happens on its own ordered track so a slow translation never holds up
         // transcribing the next phrase.
-        let (translateStream, translateOut) = AsyncStream.makeStream(of: (text: String, targets: [String], forward: Bool, spoken: Range<Date>).self)
+        let (translateStream, translateOut) = AsyncStream.makeStream(of: TranslateStep.self)
+        translationTrouble = nil
         let translateWorker = Task {
-            for await item in translateStream {
+            var missed: [String: Int] = [:]  // phrases in a row each language has been left out of
+            // Half a sentence translates wrongly, not partly, so a phrase that stops mid-sentence is held and
+            // translated together with what follows. Its English is shown and sent straight away.
+            var held: [(line: UUID, text: String, spoken: Range<Date>)] = []
+            var targets: [String] = [], forward = false
+            var turn = 0  // which wait for the rest of a sentence is current, so an earlier one running out does nothing
+
+            /// Translates `text`, sends it, and shows it (in place of `lines`, when it was held as those).
+            func finish(_ text: String, spoken: Range<Date>, replacing lines: [UUID] = []) async {
                 // English and its translations reach the website together
                 // (a slow language is dropped after a few seconds, never holding up the service).
-                let translations = await translator.translate(item.text, to: item.targets)
-                sender.send(item.text, translations: item.forward ? translations : [:])
-                await MainActor.run { self.show(item.text, translations: translations, spoken: item.spoken) }
+                let translations = await translator.translate(text, to: targets)
+                if lines.isEmpty { sender.send(text, translations: forward ? translations : [:]) }
+                else if forward { sender.send(text, translations: translations, kind: "whole") }  // its English went as parts
+                for code in targets { missed[code] = translations[code] == nil ? missed[code, default: 0] + 1 : 0 }
+                let failing = targets.filter { missed[$0, default: 0] >= 3 }  // one slow phrase isn't worth a warning
+                await MainActor.run {
+                    self.show(text, translations: translations, spoken: spoken, replacing: lines)
+                    self.noteTranslationTrouble(failing)
+                }
             }
+            func finishHeld() async {
+                guard let first = held.first, let last = held.last else { return }
+                let parts = held
+                held = []
+                await finish(parts.map(\.text).joined(separator: " "), spoken: first.spoken.lowerBound..<last.spoken.upperBound, replacing: parts.map(\.line))
+            }
+
+            for await step in translateStream {
+                switch step {
+                case .phrase(let text, let to, let send, let spoken):
+                    (targets, forward) = (to, send)
+                    let ends = Translator.endsSentence(text)
+                    if held.isEmpty, ends {
+                        await finish(text, spoken: spoken)
+                        continue
+                    }
+                    let line = await MainActor.run { self.show(text, translations: [:], spoken: spoken) }
+                    sender.send(text, kind: forward ? "part" : nil)
+                    held.append((line, text, spoken))
+                    turn += 1
+                    if !ends, held.count < 3 {  // wait for the rest, but not for long and not for ever
+                        let waiting = turn
+                        Task {
+                            try? await Task.sleep(for: .seconds(6))
+                            translateOut.yield(.waitedLongEnough(waiting))
+                        }
+                        continue
+                    }
+                case .waitedLongEnough(let waited):
+                    guard waited == turn else { continue }
+                }
+                await finishHeld()
+            }
+            await finishHeld()
         }
         let worker = Task {
             var heard: [UUID: (text: String, at: Date)] = [:]  // each input's last phrase, as context for its next one
@@ -602,7 +667,7 @@ final class AppModel: ObservableObject {
                     await MainActor.run { self.show(text, translations: [:], spoken: spoken) }
                     continue
                 }
-                translateOut.yield((text, targets, forward, spoken))
+                translateOut.yield(.phrase(text: text, targets: targets, forward: forward, spoken: spoken))
             }
             translateOut.finish()
         }
@@ -683,7 +748,7 @@ final class AppModel: ObservableObject {
                                       }
                                       queue.async {
                                           let to = input.commandsOnly && commandsFast.flag ? commands : sink
-                                          segmenter.feed(samples: samples).forEach { to.push(Phrase(input: input, audio: $0)) }
+                                          segmenter.feed(samples: samples).forEach { to.push(Phrase(input: input, audio: $0.audio, end: Date().addingTimeInterval(-$0.after))) }
                                       }
                                   },
                                   onInterrupted: { interrupted.flag = true })
@@ -750,10 +815,16 @@ struct TranscriptLine: Identifiable {
     var translations: [String: String] = [:]
 }
 
+/// What the translating track is given: a transcribed phrase, or word that a sentence has been held long enough.
+private enum TranslateStep: Sendable {
+    case phrase(text: String, targets: [String], forward: Bool, spoken: Range<Date>)
+    case waitedLongEnough(Int)
+}
+
 private struct Phrase: Sendable {
     let input: AudioInput
     let audio: [Float]
-    let end = Date()  // phrases are queued the moment they finish
+    var end = Date()  // when its audio ended: a little before it is queued, by whatever was heard after it
     var start: Date { end.addingTimeInterval(-Double(audio.count) / Double(sampleRate)) }
 }
 
