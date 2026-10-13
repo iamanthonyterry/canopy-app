@@ -25,7 +25,7 @@ actor SpeechEngine {
     /// are also real things to say, so those are only dropped when the audio doesn't sound like talking.
     private static let hallucinations: Set<String> = ["thanks for watching", "thanks for watching!"]
     private static let courtesies: Set<String> = ["thank you", "thank you.", "you", "bye", "bye."]
-    private static let courtesySpeech = 0.6
+    private static let courtesySpeech = 0.76
     private let gate = SpeechGate()
 
     var isLoaded: Bool { kit != nil }

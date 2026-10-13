@@ -14,9 +14,6 @@ final class Segmenter {
         let after: Double
     }
 
-    /// Frames of the closing pause a phrase keeps (240 ms). Whisper fills a longer silence with a sign-off.
-    private static let tailFrames = 8
-
     private let minDb: Float
     private let endPause: Float
     private let marginDb: Float = 9
@@ -83,10 +80,11 @@ final class Segmenter {
         let seconds = Float(buf.count * frameSize) / Float(sampleRate)
         let pause = Float(silentFrames * frameSize) / Float(sampleRate)
         if pause >= endPause || (seconds >= 5 && pause >= 0.25) {
-            let dropped = max(0, silentFrames - Self.tailFrames)
-            let audio = buf.dropLast(dropped).flatMap { $0 }
+            // The closing pause stays in: a sentence often trails off below speech level, and trimming the
+            // pause cut those last words off ("for the rest of their lives" lost "their lives").
+            let audio = buf.flatMap { $0 }
             reset()
-            return seconds - pause >= 0.4 ? Cut(audio: audio, after: Self.duration(frames: dropped)) : nil  // drop blips
+            return seconds - pause >= 0.4 ? Cut(audio: audio, after: 0) : nil  // drop blips
         }
         guard seconds >= 15 else { return nil }
         // Speech with no real pause: rather than cutting wherever it has got to (Whisper invents the rest of a
