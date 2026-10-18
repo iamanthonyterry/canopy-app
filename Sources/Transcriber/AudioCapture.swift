@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreAudio
+import os
 
 struct InputDevice: Identifiable, Hashable {
     let id: AudioDeviceID
@@ -63,11 +64,17 @@ final class AudioCapture {
     private var procID: AudioDeviceIOProcID?
     private var listeners: [(AudioObjectID, AudioObjectPropertyAddress, AudioObjectPropertyListenerBlock)] = []
     private let ioQueue = DispatchQueue(label: "audio.capture.io", qos: .userInteractive)
+    private let lastBuffer = OSAllocatedUnfairLock(initialState: ProcessInfo.processInfo.systemUptime)
+
+    /// Seconds since the device last handed over audio (or since the capture started). A device that is still
+    /// listed but has stopped delivering, after a sleep or a flaky USB hub, shows up here and nowhere else.
+    func silentFor() -> TimeInterval { ProcessInfo.processInfo.systemUptime - lastBuffer.withLock { $0 } }
 
     /// `onSamples` is called on an audio queue; hand the work off quickly.
     /// `onInterrupted` fires when macOS changes the audio setup (device unplugged, sample rate change).
     func start(device: InputDevice?, channel: Int, onSamples: @escaping ([Float]) -> Void, onInterrupted: @escaping () -> Void) throws {
         stop()
+        lastBuffer.withLock { $0 = ProcessInfo.processInfo.systemUptime }
         let id = device?.id ?? AudioDevices.defaultInput()
         let total = id == 0 ? 0 : AudioDevices.inputChannels(id)
         guard total > 0 else { throw CaptureError(message: "No audio input available") }
@@ -90,7 +97,8 @@ final class AudioCapture {
         let wanted = channel - 1
 
         var proc: AudioDeviceIOProcID?
-        let made = AudioDeviceCreateIOProcIDWithBlock(&proc, id, ioQueue) { _, inData, _, _, _ in
+        let made = AudioDeviceCreateIOProcIDWithBlock(&proc, id, ioQueue) { [lastBuffer] _, inData, _, _, _ in
+            lastBuffer.withLock { $0 = ProcessInfo.processInfo.systemUptime }
             // The buffers may be one interleaved block or one per channel; find the one holding our channel.
             let list = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inData))
             var offset = 0

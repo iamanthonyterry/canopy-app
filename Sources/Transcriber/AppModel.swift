@@ -42,7 +42,9 @@ final class AppModel: ObservableObject {
     @Published var pcoError: String?
     private let pco = PCOClient()
     private let translator = Translator()
-    private let engine = SpeechEngine()
+    private var engine = SpeechEngine()  // replaced when a decode hangs (see recoverFromStall)
+    private let decodeClock = DecodeClock()
+    private var keepAwake: NSObjectProtocol?
     /// A small model just for commands-only inputs, so a cue waits for neither the transcript nor a big decode.
     private let commandEngine = SpeechEngine(variant: SpeechEngine.commandVariant)
     private let commandsFast = Interrupt()  // set once that model is loaded; until then commands use the main one
@@ -150,6 +152,7 @@ final class AppModel: ObservableObject {
             return
         }
         if !restarting { beginSession() }
+        holdAwake()
         running = true
         status = "Starting…"
         runTask = Task { await self.run() }
@@ -166,6 +169,7 @@ final class AppModel: ObservableObject {
         listening = false
         feedWarning = nil
         status = "Stopped"
+        releaseAwake()
         if !restarting { endSession() }
         if let install = pendingUpdate { install() }  // an update was waiting for the service to finish
     }
@@ -679,9 +683,11 @@ final class AppModel: ObservableObject {
                 let vocabulary = await MainActor.run {
                     commands ? Cues.vocabulary(self.settings.oscRules, wakeWord: self.settings.oscWakeWord) : self.settings.promptVocabulary
                 }
-                guard let text = try? await engine.text(for: phrase.audio, corrections: corrections, vocabulary: vocabulary,
-                                                        previous: commands ? "" : previous, expectingPrompt: commands),
-                      !text.isEmpty else { continue }
+                decodeClock.begin()
+                let decoded = try? await engine.text(for: phrase.audio, corrections: corrections, vocabulary: vocabulary,
+                                                     previous: commands ? "" : previous, expectingPrompt: commands)
+                decodeClock.end()
+                guard let text = decoded, !text.isEmpty else { continue }
                 heard[phrase.input.id] = (text, Date())
                 if phrase.input.triggerOSC { await MainActor.run { self.fireOSC(for: text) } }  // before translating, so cues aren't delayed
                 guard phrase.input.sendToSite, await MainActor.run(body: { self.pushingToSite }) else { continue }
@@ -712,6 +718,7 @@ final class AppModel: ObservableObject {
 
         heartbeatTask = Task {
             while !Task.isCancelled {
+                if let stuck = decodeClock.runningFor(), stuck > 60 { await MainActor.run { self.recoverFromStall() }; return }
                 if await MainActor.run(body: { self.listening && self.pushingToSite }) { await sender.heartbeat() }
                 try? await Task.sleep(for: .seconds(15))
             }
@@ -789,9 +796,15 @@ final class AppModel: ObservableObject {
         status = segmenters.isEmpty ? "Waiting for the audio input" + missingNote : (inService ? "Listening" : "Listening for OSC only") + missingNote
         listening = !segmenters.isEmpty
         var seconds = 0
+        // A Mac waking from sleep often leaves the interface's stream dead without announcing it.
+        let wakeObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in
+            interrupted.flag = true
+        }
+        defer { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
         while !Task.isCancelled && !interrupted.flag && (!settings.scheduleOn || Schedule.inWindow(settings)) == inService {
             try? await Task.sleep(for: .seconds(1))
             seconds += 1
+            if seconds >= 5, captures.values.contains(where: { $0.silentFor() > 5 }) { interrupted.flag = true }  // listed, but no audio arriving
             let warning = watch?.warning(silentAfter: settings.silenceWarnMinutes)
             if warning != feedWarning { feedWarning = warning }
             if !missing.isEmpty, seconds % 3 == 0 {  // plugged back in? start over with it
@@ -816,6 +829,33 @@ final class AppModel: ObservableObject {
         return true
     }
 
+    /// Keeps the Mac from sleeping while the service is on, so the "Prevent automatic sleeping" setting is not
+    /// something to remember on a new machine. The display may still sleep.
+    private func holdAwake() {
+        guard keepAwake == nil else { return }
+        keepAwake = ProcessInfo.processInfo.beginActivity(options: [.idleSystemSleepDisabled, .userInitiated], reason: "Transcribing the service")
+    }
+
+    private func releaseAwake() {
+        if let keepAwake { ProcessInfo.processInfo.endActivity(keepAwake) }
+        keepAwake = nil
+    }
+
+    /// A decode that has not come back in a minute means the speech model is hung (a normal phrase takes about
+    /// a second), and everything behind it would wait for ever. Start over with a freshly loaded model.
+    private func recoverFromStall() {
+        guard running, runTask != nil else { return }
+        status = "Speech model stopped responding — restarting it…"
+        engine = SpeechEngine()
+        decodeClock.end()
+        let update = pendingUpdate  // restarting must not install a waiting update in the middle of a service
+        restarting = true
+        stop()
+        pendingUpdate = update
+        start()
+        restarting = false
+    }
+
     private func stopCaptures() {
         captures.values.forEach { $0.stop() }
         captures = [:]
@@ -823,6 +863,7 @@ final class AppModel: ObservableObject {
 
     private func fail(_ message: String) {
         runTask = nil
+        releaseAwake()
         running = false
         listening = false
         heartbeatTask?.cancel()
@@ -896,3 +937,13 @@ private final class PhraseQueue: @unchecked Sendable {
 }
 
 private final class Interrupt: @unchecked Sendable { var flag = false }
+
+/// When the current decode began, so a hung speech model can be told from a busy one.
+private final class DecodeClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var since: Date?
+
+    func begin() { lock.withLock { since = Date() } }
+    func end() { lock.withLock { since = nil } }
+    func runningFor() -> TimeInterval? { lock.withLock { since.map { Date().timeIntervalSince($0) } } }
+}
