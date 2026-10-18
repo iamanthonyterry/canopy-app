@@ -1,12 +1,15 @@
 import AppKit
 import SwiftUI
 import Translation
+import ChurchKitCore
 
 @main
 struct TranscriberApp: App {
     @StateObject private var model = AppModel()
 
     init() {
+        // This app was church.lifepoint.transcriber before it joined the Church Landing Page apps; bring its settings and key along.
+        LegacyMigration.run(fromBundleID: "church.lifepoint.transcriber", keychainServices: [(Keychain.legacyService, Keychain.currentService)])
         if let i = CommandLine.arguments.firstIndex(of: "--transcribe-file"), i + 1 < CommandLine.arguments.count {
             let v = CommandLine.arguments.firstIndex(of: "--vocabulary").flatMap { $0 + 1 < CommandLine.arguments.count ? CommandLine.arguments[$0 + 1] : nil }
             FileTest.run(path: CommandLine.arguments[i + 1], vocabulary: v ?? "", commands: CommandLine.arguments.contains("--commands"),

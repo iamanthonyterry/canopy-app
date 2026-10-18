@@ -130,7 +130,10 @@ extension Settings {
 }
 
 enum Keychain {
-    private static let service = "church.lifepoint.transcriber"
+    private static let service = "com.rosesashumans.churchlandingpage.transcriber"
+    /// Where Keychain items lived before the bundle id changed (see LegacyMigration).
+    static let legacyService = "church.lifepoint.transcriber"
+    static var currentService: String { service }
     private static let defaultAccount = "transcriber-key"
 
     static func read(account: String = defaultAccount) -> String {
