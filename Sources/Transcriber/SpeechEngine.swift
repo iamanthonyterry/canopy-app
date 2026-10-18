@@ -13,11 +13,8 @@ actor SpeechEngine {
 
     static let repo = "argmaxinc/whisperkit-coreml"
 
-    /// Where models live. To set up a Mac with no internet, copy a model folder here beforehand.
-    static var modelsDir: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Transcriber/Models", isDirectory: true)
-    }
+    /// Where models live (shared with Canopy). To set up a Mac with no internet, copy a model folder here beforehand.
+    static var modelsDir: URL { ModelFolder.root }
 
     private var kit: WhisperKit?
 
