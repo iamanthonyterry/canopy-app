@@ -422,6 +422,11 @@ Text("Only inputs with “Trigger OSC” on send these, and “Voice cues” in 
                 Toggle("Skip music, singing and noise", isOn: $model.settings.speechOnly)
                 Text("Only talking is transcribed, including talking over music. Turn this off if real speech is being left out.")
                     .font(.caption).foregroundStyle(.secondary)
+                Toggle("Show words as they’re spoken", isOn: $model.settings.showPartials)
+                Text(model.partialsSupported
+                     ? "Readers see a gray draft line that the finished sentence replaces. Uses a little more of the Neural Engine while someone talks."
+                     : "Readers see a gray draft line that the finished sentence replaces. Takes effect once the website is updated to support it; until then nothing is sent.")
+                    .font(.caption).foregroundStyle(.secondary)
                 LevelMeter(level: model.levelDb, threshold: model.settings.minDb)
                 HStack {
                     Slider(value: $model.settings.minDb, in: -65...(-30), step: 1)

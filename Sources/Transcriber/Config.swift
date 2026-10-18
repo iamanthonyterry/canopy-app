@@ -11,6 +11,7 @@ struct Settings: Codable, Equatable {
     var corrections = defaultCorrections  // one "heard => correct" per line, applied to every phrase
     var vocabulary = ""            // names and terms Whisper should expect (one per line or comma-separated)
     var speechOnly = true          // skip phrases that are music, singing or noise rather than talking
+    var showPartials = false       // send the words of a phrase still being spoken as a draft line (the website must support it)
     var minDb = -50.0
     var silenceWarnMinutes = 0     // warn when the website's input has been silent this long during a service (0 = off)
     var scheduleOn = false
@@ -92,6 +93,7 @@ extension Settings {
         corrections = try c.decodeIfPresent(String.self, forKey: .corrections) ?? d.corrections
         vocabulary = try c.decodeIfPresent(String.self, forKey: .vocabulary) ?? d.vocabulary
         speechOnly = try c.decodeIfPresent(Bool.self, forKey: .speechOnly) ?? d.speechOnly
+        showPartials = try c.decodeIfPresent(Bool.self, forKey: .showPartials) ?? d.showPartials
         minDb = try c.decodeIfPresent(Double.self, forKey: .minDb) ?? d.minDb
         silenceWarnMinutes = try c.decodeIfPresent(Int.self, forKey: .silenceWarnMinutes) ?? d.silenceWarnMinutes
         scheduleOn = try c.decodeIfPresent(Bool.self, forKey: .scheduleOn) ?? d.scheduleOn

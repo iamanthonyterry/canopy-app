@@ -44,6 +44,8 @@ final class AppModel: ObservableObject {
     private let translator = Translator()
     private var engine = SpeechEngine()  // replaced when a decode hangs (see recoverFromStall)
     private let decodeClock = DecodeClock()
+    /// The website's last heartbeat said it takes draft lines (see Sender.sendPartial).
+    @Published var partialsSupported = false
     private var keepAwake: NSObjectProtocol?
     /// A small model just for commands-only inputs, so a cue waits for neither the transcript nor a big decode.
     private let commandEngine = SpeechEngine(variant: SpeechEngine.commandVariant)
@@ -606,6 +608,7 @@ final class AppModel: ObservableObject {
         await sendResetIfNeeded(sender)
         // One worker for every input: Whisper handles one phrase at a time.
         let phraseQueue = PhraseQueue()  // website phrases are taken before OSC-only ones
+        let partials = PartialSlot()
         let corrections = settings.corrections
         let gate = settings.speechOnly ? SpeechGate() : nil
         // Translating happens on its own ordered track so a slow translation never holds up
@@ -714,12 +717,29 @@ final class AppModel: ObservableObject {
                 await MainActor.run { self.fireOSC(for: text) }
             }
         }
-        defer { phraseQueue.finish(); worker.cancel(); translateWorker.cancel(); commandQueue.finish(); commandWorker.cancel() }
+        // Words so far of the phrase being spoken, sent to the website as a draft line. Only ever uses the model
+        // between phrases (a finished phrase always goes first), and a draft whose phrase has since finished is dropped.
+        let partialWorker = Task {
+            let gate = gate == nil ? nil : SpeechGate()
+            var lastSent = ""
+            while let job = await partials.next(), !Task.isCancelled {
+                guard partials.isCurrent(job), phraseQueue.isEmpty, decodeClock.runningFor() == nil, sender.supportsPartials else { continue }
+                if let gate, (gate.speechConfidence(SpeechEngine.normalized(job.audio)) ?? 1) < SpeechGate.threshold { continue }
+                let corrections = await MainActor.run { self.settings.corrections }
+                guard let text = try? await engine.text(for: job.audio, corrections: corrections), !text.isEmpty,
+                      text != lastSent, partials.isCurrent(job) else { continue }
+                lastSent = text
+                await sender.sendPartial(text)
+            }
+        }
+        defer { phraseQueue.finish(); partials.finish(); partialWorker.cancel(); worker.cancel(); translateWorker.cancel(); commandQueue.finish(); commandWorker.cancel() }
 
         heartbeatTask = Task {
             while !Task.isCancelled {
                 if let stuck = decodeClock.runningFor(), stuck > 60 { await MainActor.run { self.recoverFromStall() }; return }
                 if await MainActor.run(body: { self.listening && self.pushingToSite }) { await sender.heartbeat() }
+                let supported = sender.supportsPartials
+                await MainActor.run { if self.partialsSupported != supported { self.partialsSupported = supported } }
                 try? await Task.sleep(for: .seconds(15))
             }
         }
@@ -740,7 +760,7 @@ final class AppModel: ObservableObject {
                 while !Task.isCancelled && !(settings.scheduleOn ? Schedule.inWindow(settings) : true) { try? await Task.sleep(for: .seconds(1)) }
                 continue
             }
-            if await listenUntilDone(phraseQueue, commands: commandQueue, inputs: active, inService: inService) == false { return }
+            if await listenUntilDone(phraseQueue, commands: commandQueue, partials: partials, inputs: active, inService: inService) == false { return }
             if inService && settings.scheduleOn && !Schedule.inWindow(settings) && !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(4))  // let the last phrase finish transcribing
                 if let saved = endSession() { status = "Saved \(saved.lastPathComponent)" }
@@ -751,7 +771,7 @@ final class AppModel: ObservableObject {
     }
 
     /// Listens on every input until stopped, the schedule window ends, or the audio setup changes. Returns false on a fatal error.
-    private func listenUntilDone(_ sink: PhraseQueue, commands: PhraseQueue, inputs: [AudioInput], inService: Bool) async -> Bool {
+    private func listenUntilDone(_ sink: PhraseQueue, commands: PhraseQueue, partials: PartialSlot, inputs: [AudioInput], inService: Bool) async -> Bool {
         let commandsFast = commandsFast
         let minDb = settings.minDb
         let interrupted = Interrupt()
@@ -760,6 +780,9 @@ final class AppModel: ObservableObject {
         let recorder = inService ? sessionRecorder() : nil  // records the input that feeds the website
         let watch = inService && settings.inputs.contains(where: { $0.sendToSite }) ? FeedWatch(minDb: minDb) : nil
         var segmenters: [(Segmenter, DispatchQueue, AudioInput)] = []
+        // Drafts come from one input only, the first that talks to the website: several would overwrite each other.
+        let draftInput = inService && settings.showPartials ? inputs.first(where: { $0.sendToSite && !$0.commandsOnly && !isMissing($0) })?.id : nil
+        let draftClock = PartialClock()
         captures = [:]
         // An input whose device is unplugged waits for it; it never falls back to another microphone.
         let missing = inputs.filter(isMissing)
@@ -780,7 +803,11 @@ final class AppModel: ObservableObject {
                                       }
                                       queue.async {
                                           let to = input.commandsOnly && commandsFast.flag ? commands : sink
-                                          segmenter.feed(samples: samples).forEach { to.push(Phrase(input: input, audio: $0.audio, end: Date().addingTimeInterval(-$0.after))) }
+                                          let cuts = segmenter.feed(samples: samples)
+                                          cuts.forEach { to.push(Phrase(input: input, audio: $0.audio, end: Date().addingTimeInterval(-$0.after))) }
+                                          guard input.id == draftInput else { return }
+                                          if !cuts.isEmpty { partials.invalidate() }  // those words are final now
+                                          else if draftClock.due(every: 1.0), let audio = segmenter.inProgress(minSeconds: 1.2, maxSeconds: 10) { partials.offer(audio) }
                                       }
                                   },
                                   onInterrupted: { interrupted.flag = true })
@@ -934,9 +961,67 @@ private final class PhraseQueue: @unchecked Sendable {
         lock.unlock()
         w?.resume(returning: nil)
     }
+
+    var isEmpty: Bool { lock.withLock { site.isEmpty && osc.isEmpty } }
 }
 
 private final class Interrupt: @unchecked Sendable { var flag = false }
+
+/// Lets a draft be made about once a second.
+private final class PartialClock: @unchecked Sendable {
+    private var last = Date.distantPast
+    func due(every seconds: Double) -> Bool {
+        let now = Date()
+        guard now.timeIntervalSince(last) >= seconds else { return false }
+        last = now
+        return true
+    }
+}
+
+/// The newest in-progress audio waiting for a draft. A newer one replaces an older one, and `invalidate`
+/// (a phrase just finished) makes any draft already offered or being made out of date.
+private final class PartialSlot: @unchecked Sendable {
+    struct Job: Sendable { let audio: [Float]; let generation: Int }
+    private let lock = NSLock()
+    private var generation = 0
+    private var latest: Job?
+    private var waiter: CheckedContinuation<Job?, Never>?
+    private var finished = false
+
+    func offer(_ audio: [Float]) {
+        lock.lock()
+        let job = Job(audio: audio, generation: generation)
+        if let w = waiter {
+            waiter = nil
+            lock.unlock()
+            w.resume(returning: job)
+            return
+        }
+        latest = job
+        lock.unlock()
+    }
+
+    func invalidate() { lock.withLock { generation += 1; latest = nil } }
+    func isCurrent(_ job: Job) -> Bool { lock.withLock { job.generation == generation } }
+
+    func next() async -> Job? {
+        await withCheckedContinuation { cont in
+            lock.lock()
+            if let job = latest { latest = nil; lock.unlock(); cont.resume(returning: job) }
+            else if finished { lock.unlock(); cont.resume(returning: nil) }
+            else { waiter = cont; lock.unlock() }
+        }
+    }
+
+    func finish() {
+        lock.lock()
+        finished = true
+        let w = waiter
+        waiter = nil
+        lock.unlock()
+        w?.resume(returning: nil)
+    }
+}
 
 /// When the current decode began, so a hung speech model can be told from a busy one.
 private final class DecodeClock: @unchecked Sendable {

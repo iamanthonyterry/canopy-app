@@ -109,6 +109,12 @@ final class Segmenter {
 
     private static func duration(frames: Int) -> Double { Double(frames * frameSize) / Double(sampleRate) }
 
+    /// The audio of the phrase being spoken so far (at most the last `maxSeconds`), once it is `minSeconds` long.
+    func inProgress(minSeconds: Double, maxSeconds: Double) -> [Float]? {
+        guard speaking, Double(buf.count * frameSize) / Double(sampleRate) >= minSeconds else { return nil }
+        return buf.suffix(Int(maxSeconds * Double(sampleRate)) / frameSize).flatMap { $0 }
+    }
+
     func flush() -> [Float]? {
         guard speaking, !buf.isEmpty else { return nil }
         let audio = buf.flatMap { $0 }

@@ -14,9 +14,29 @@ final class Sender: @unchecked Sendable {
     private var _campus: String?
     private var _church: String?
     private var bad = false
+    private var _partials = false
+    private var partialBusy = false
 
     var campus: String? { lock.withLock { _campus } }
     var church: String? { lock.withLock { _church } }
+    /// Whether the website said (in its last heartbeat reply) that it takes draft lines. An older site would show them as real text.
+    var supportsPartials: Bool { lock.withLock { _partials } }
+
+    private func claimPartial() -> Bool {
+        lock.withLock {
+            if partialBusy { return false }
+            partialBusy = true
+            return true
+        }
+    }
+
+    /// The words so far of a phrase still being spoken. Best effort: one at a time, never queued or retried,
+    /// because a draft that arrives late is worse than none.
+    func sendPartial(_ text: String) async {
+        guard !dryRun, supportsPartials, claimPartial() else { return }
+        defer { lock.withLock { partialBusy = false } }
+        try? await post(text, partial: true)
+    }
 
     init(url: String, token: String, dryRun: Bool = false, onStatus: @escaping @Sendable (String) -> Void) {
         self.url = URL(string: url)
@@ -70,7 +90,7 @@ final class Sender: @unchecked Sendable {
 
     private enum SendError: Error { case http(Int), badURL }
 
-    private func post(_ text: String?, translations: [String: String] = [:], kind: String? = nil, reset: Bool = false) async throws {
+    private func post(_ text: String?, translations: [String: String] = [:], kind: String? = nil, reset: Bool = false, partial: Bool = false) async throws {
         guard let url else { throw SendError.badURL }
         var req = URLRequest(url: url, timeoutInterval: 10)
         req.httpMethod = "POST"
@@ -79,6 +99,7 @@ final class Sender: @unchecked Sendable {
         var body: [String: Any] = reset ? ["reset": true] : (text.map { ["text": $0] } ?? ["heartbeat": true])
         if !translations.isEmpty { body["translations"] = translations }
         if let kind { body["kind"] = kind }
+        if partial { body["partial"] = true }
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (data, res) = try await URLSession.shared.data(for: req)
         let code = (res as? HTTPURLResponse)?.statusCode ?? 0
@@ -87,6 +108,7 @@ final class Sender: @unchecked Sendable {
             lock.withLock {
                 _campus = c
                 _church = j["church"] as? String
+                _partials = j["partials"] as? Bool ?? false
             }
         }
     }

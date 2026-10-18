@@ -68,5 +68,6 @@ Test the pipeline without a mixer: `build/Transcriber.app/Contents/MacOS/Transcr
 ## Website side
 
 - `POST /api/transcript` (key-protected) receives text; `/live/<campus>` displays it.
+- With *Show words as they’re spoken* on (Website settings), about once a second while someone talks the app decodes the phrase so far and posts it as `{text, partial: true}`. The site keeps it as one replaceable gray draft line that the finished segment replaces (never a segment of its own). The app only does this once the site's heartbeat reply includes `partials: true`, so an older site never shows drafts as real text.
 - With translations on, a phrase that stops mid-sentence is sent in English straight away as `kind: "part"`, and the finished sentence follows as `kind: "whole"` with its translations (after at most three phrases, or six seconds without the rest). English readers see the parts, other languages the whole. The website must be on a version that knows `kind` before the app is updated, or both show.
 - The relay keeps text in the server process's memory, so the site must run as a long-lived server (`next start`, VPS), not serverless hosting like Vercel.
