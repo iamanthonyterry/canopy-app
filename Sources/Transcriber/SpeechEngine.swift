@@ -1,3 +1,4 @@
+import ChurchKitCore
 import CoreML
 import Foundation
 import WhisperKit
@@ -14,7 +15,7 @@ actor SpeechEngine {
     static let repo = "argmaxinc/whisperkit-coreml"
 
     /// Where models live (shared with Canopy). To set up a Mac with no internet, copy a model folder here beforehand.
-    static var modelsDir: URL { ModelFolder.root }
+    static var modelsDir: URL { SharedModelFolder.preparedWhisper() }
 
     private var kit: WhisperKit?
 

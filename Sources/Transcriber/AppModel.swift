@@ -1,3 +1,4 @@
+import ChurchKitAuth
 import AppKit
 import Combine
 import ServiceManagement
@@ -207,9 +208,11 @@ final class AppModel: ObservableObject {
         signInTask = Task { @MainActor in
             defer { signInBusy = false; signInTask = nil }
             do {
-                let c = try await WebSignIn().run(site: siteBase)
-                token = c.key
-                settings.connectedTo = c.name.isEmpty ? c.campus : c.name
+                guard let site = URL(string: siteBase) else { throw ConnectError.badSite }
+                let result = try await ConnectFlow().run(ConnectRequest(app: .transcriber, want: .key, site: site))
+                guard let campus = result.campus else { throw ConnectError.badSite }
+                token = campus.key
+                settings.connectedTo = campus.campusName.isEmpty ? campus.campusID : campus.campusName
                 apply()
                 NSApp.activate(ignoringOtherApps: true)
             } catch is CancellationError {

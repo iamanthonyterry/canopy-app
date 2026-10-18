@@ -7,6 +7,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.12.0"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
+        // Shared with Canopy. A local checkout until the kit is published.
+        .package(path: "../church-landing-page-kit"),
     ],
     targets: [
         .executableTarget(
@@ -14,6 +16,8 @@ let package = Package(
             dependencies: [
                 .product(name: "WhisperKit", package: "WhisperKit"),
                 .product(name: "Sparkle", package: "Sparkle"),
+                .product(name: "ChurchKitCore", package: "church-landing-page-kit"),
+                .product(name: "ChurchKitAuth", package: "church-landing-page-kit"),
             ],
             path: "Sources/Transcriber",
             swiftSettings: [.swiftLanguageMode(.v5)],
