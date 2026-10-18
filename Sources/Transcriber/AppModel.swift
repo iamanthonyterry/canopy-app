@@ -1,4 +1,5 @@
 import ChurchKitAuth
+import ChurchKitCore
 import AppKit
 import Combine
 import ServiceManagement
@@ -71,6 +72,11 @@ final class AppModel: ObservableObject {
 
     init() {
         (settings, token) = SettingsStore.load()
+        // A campus key Canopy left for this helper (it signed in once for both apps) is taken before anything uses the old one.
+        if let offer = HelperHandoff.take(keychainService: Keychain.currentService) { adopt(offer, save: true) }
+        DistributedNotificationCenter.default().addObserver(forName: HelperHandoff.pingName, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.checkHandoff() }
+        }
         refreshDevices()
         loadLanguages()
         updates.model = self
@@ -225,6 +231,20 @@ final class AppModel: ObservableObject {
     }
 
     func cancelSignIn() { signInTask?.cancel() }
+
+    /// Picks up a campus key Canopy left for this helper. A live session is never interrupted: while running,
+    /// the offer stays where it is and is taken the next time this is called after listening stops.
+    func checkHandoff() {
+        guard !running, let offer = HelperHandoff.take(keychainService: Keychain.currentService) else { return }
+        adopt(offer, save: false)
+        apply()
+    }
+
+    private func adopt(_ offer: HelperHandoff.Offer, save: Bool) {
+        token = offer.key
+        settings.connectedTo = offer.campusName.isEmpty ? offer.campusID : offer.campusName
+        if save { SettingsStore.save(settings, token: token) }
+    }
 
     func disconnect() {
         token = ""

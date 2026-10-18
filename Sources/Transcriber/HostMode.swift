@@ -22,7 +22,7 @@ final class StatusPublisher {
         model.objectWillChange.throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)
             .sink { [weak self] _ in self?.write(onlyIfChanged: true) }.store(in: &cancellables)
         timer = Timer.scheduledTimer(withTimeInterval: HelperStatus.heartbeat, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.write() }
+            Task { @MainActor in self?.write(); self?.model?.checkHandoff() }
         }
         NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)
             .sink { _ in HelperStatus.clear() }.store(in: &cancellables)
