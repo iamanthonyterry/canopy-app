@@ -67,12 +67,14 @@ final class AppModel: ObservableObject {
     private var deviceAgent: DeviceAgent?
 
     let updates = UpdateManager()
+    private var statusPublisher: StatusPublisher?
 
     init() {
         (settings, token) = SettingsStore.load()
         refreshDevices()
         loadLanguages()
         updates.model = self
+        statusPublisher = StatusPublisher(model: self)
         connectControls()
         let agent = DeviceAgent(
             credentials: { [weak self] in await self?.deviceCredentials() ?? ("", "") },

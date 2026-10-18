@@ -11,10 +11,11 @@ final class UpdateManager: NSObject, SPUUpdaterDelegate {
 
     override init() {
         super.init()
-        controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: self, userDriverDelegate: nil)
+        // Nested in Canopy, Canopy's updates replace this app along with its own, so this one stays quiet.
+        controller = SPUStandardUpdaterController(startingUpdater: !HostMode.isNested, updaterDelegate: self, userDriverDelegate: nil)
     }
 
-    func checkForUpdates() { controller.checkForUpdates(nil) }
+    func checkForUpdates() { if !HostMode.isNested { controller.checkForUpdates(nil) } }
 
     nonisolated func updater(_ updater: SPUUpdater, willInstallUpdateOnQuit item: SUAppcastItem, immediateInstallationBlock: @escaping () -> Void) -> Bool {
         Task { @MainActor in
