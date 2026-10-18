@@ -7,8 +7,8 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/argmaxinc/WhisperKit.git", from: "0.12.0"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.4"),
-        // Shared with Canopy. A local checkout until the kit is published.
-        .package(path: "../church-landing-page-kit"),
+        // Shared with Canopy.
+        .package(url: "https://github.com/iamanthonyterry/church-landing-page-kit.git", from: "0.1.0"),
     ],
     targets: [
         .executableTarget(
