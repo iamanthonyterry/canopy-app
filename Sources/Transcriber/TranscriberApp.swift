@@ -403,7 +403,7 @@ struct SettingsView: View {
                         ForEach(model.cueLog.prefix(5)) { Text(CueRow.summary($0)).font(.caption).foregroundStyle($0.outcome == .sent ? .primary : .secondary) }
                     }
                 }
-Text("Only inputs with “Trigger OSC” on send these, and “Voice cues” in the menu bar switches them all off. A phrase matches whole words, ignoring case and punctuation. Write {number} in a phrase to take a spoken number (“go cue {number}”) and again in the address or value to use it. MIDI goes out on a source named “Transcriber” that other apps can pick as an input.")
+Text("Only inputs with “Trigger OSC” on send these, and “Voice cues” in the menu bar switches them all off. A phrase matches whole words, ignoring case and punctuation. Separate several ways of saying it with commas (“next slide, advance”). Write {number} in a phrase to take a spoken number (“go cue {number}”) and again in the address or value to use it. MIDI goes out on a source named “Transcriber” that other apps can pick as an input.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Tuning") {

@@ -79,15 +79,21 @@ enum Cues {
     /// What a commands-only input should expect to hear: the wake word and each rule's words. Whisper then
     /// writes "go cue 25" where it would otherwise write "GoQ25".
     static func vocabulary(_ rules: [OSCRule], wakeWord: String) -> String {
-        ([wakeWord] + rules.filter(\.isSendable).map { $0.phrase.replacingOccurrences(of: slot, with: " ") })
+        ([wakeWord] + rules.filter(\.isSendable).flatMap { alternatives($0.phrase) }.map { $0.replacingOccurrences(of: slot, with: " ") })
             .map { $0.split(separator: " ").joined(separator: " ") }.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    /// A rule's phrase may list several ways to say it, separated by commas ("next slide, advance").
+    static func alternatives(_ phrase: String) -> [String] {
+        phrase.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
     /// Every way `rules` occur in the heard words, each with the spoken number filled in.
     static func matches(_ rules: [OSCRule], in heard: [String]) -> [OSCRule] {
         var found: [OSCRule] = []
         for rule in rules where rule.isSendable {
-            let pattern = words(rule.phrase)
+            for alternative in alternatives(rule.phrase) {
+            let pattern = words(alternative)
             guard !pattern.isEmpty, pattern.contains(where: { $0 != slot }), heard.count >= pattern.count else { continue }
             for start in 0...(heard.count - pattern.count) {
                 var number = ""
@@ -102,6 +108,7 @@ enum Cues {
                     let filled = pattern.contains(slot) ? rule.filled(with: number) : rule
                     if !found.contains(filled) { found.append(filled) }
                 }
+            }
             }
         }
         return found
