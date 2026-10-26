@@ -384,6 +384,7 @@ final class WorkflowEngine: ObservableObject {
                     )
                     session.log("📁 Created folder: \(folderURL.path)")
                     createdFolders[step.id] = folderURL
+                    session.createdFolderShare = shareInfo(cloudStoreID: cloudStoreID, folderURL: folderURL)
                     if step.id == referencedFolderStepID {
                         contexts = contexts.map {
                             var context = $0
@@ -1890,13 +1891,21 @@ final class WorkflowEngine: ObservableObject {
             fileNamesBody = context.files.map { "- \($0.lastPathComponent)" }.joined(separator: "\n")
         }
 
-        let resolvedHeader = header
+        let share = session.createdFolderShare
+        func resolveShare(_ text: String) -> String {
+            text
+                .replacingOccurrences(of: "{server_ip}", with: share?.serverIP ?? "")
+                .replacingOccurrences(of: "{volume_name}", with: share?.volumeName ?? "")
+                .replacingOccurrences(of: "{folder_name}", with: share?.folderName ?? "")
+        }
+
+        let resolvedHeader = resolveShare(header)
             .replacingOccurrences(of: "{workflow_name}", with: session.workflow.name)
             .replacingOccurrences(of: "{workflow}", with: session.workflow.name)
             .replacingOccurrences(of: "{time_taken}", with: timeTakenStr)
             .replacingOccurrences(of: "{file_names}", with: fileNamesHeader)
 
-        let resolvedMessage = message
+        let resolvedMessage = resolveShare(message)
             .replacingOccurrences(of: "{workflow_name}", with: session.workflow.name)
             .replacingOccurrences(of: "{workflow}", with: session.workflow.name)
             .replacingOccurrences(of: "{time_taken}", with: timeTakenStr)
@@ -2229,6 +2238,21 @@ final class WorkflowEngine: ObservableObject {
             }
             throw DestinationNotReady()
         }
+    }
+
+    /// The server, volume and folder name behind the email link variables
+    /// for a folder made on the given store (or the global sync location).
+    private func shareInfo(cloudStoreID: UUID?, folderURL: URL) -> WorkflowRunSession.CreatedFolderShare {
+        let ip: String
+        let volume: String
+        if let id = cloudStoreID, let store = appState.cloudStores.first(where: { $0.id == id }) {
+            ip = store.ipAddress
+            volume = store.volumeName
+        } else {
+            ip = appState.syncLocation.ipAddress
+            volume = appState.syncLocation.volumeName
+        }
+        return .init(serverIP: ip, volumeName: volume, folderName: folderURL.lastPathComponent)
     }
 
     /// Creates (and returns) the folder configured by a Create Folder step.

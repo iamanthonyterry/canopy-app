@@ -35,6 +35,16 @@ final class WorkflowRunSession: ObservableObject, Identifiable {
     /// on. Removed by the engine when the run finishes.
     var transcriptFilesToDelete: Set<URL> = []
 
+    /// Where the folder a Create Folder step made lives on the network —
+    /// the values behind the {server_ip}, {volume_name} and {folder_name}
+    /// email variables. The latest Create Folder step wins.
+    struct CreatedFolderShare {
+        var serverIP: String
+        var volumeName: String
+        var folderName: String
+    }
+    var createdFolderShare: CreatedFolderShare?
+
     /// The step currently paused and waiting on a confirmation response —
     /// non-nil only while a `.requiresConfirmation` step is holding the
     /// run. Drives the confirmation prompt in the UI.

@@ -1002,6 +1002,9 @@ struct WorkflowStepConfigSheet: View {
         .init(token: "{time_taken}", description: "Time elapsed since start (e.g. 1m 30s)"),
         .init(token: "{file_names}", description: "Files processed (list in body, comma-separated in header)"),
         .init(token: "{recipient_name}", description: "The recipient's name"),
+        .init(token: "{server_ip}", description: "IP address of the device the Create Folder step saved to"),
+        .init(token: "{volume_name}", description: "Volume (share) name of that device"),
+        .init(token: "{folder_name}", description: "Name of the folder the Create Folder step made"),
     ]
 
     private func insertNotifyVariable(_ token: String) {
