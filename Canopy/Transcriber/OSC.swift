@@ -4,7 +4,7 @@ import Network
 /// "When this phrase is heard, send this": an OSC message, a web request or a MIDI message.
 /// The phrase may contain `{number}` ("go cue {number}"), and so may the address and value, which get
 /// the number that was said ("/cue/{number}/start").
-nonisolated struct OSCRule: Codable, Equatable, Identifiable {
+nonisolated struct OSCRule: Codable, Hashable, Identifiable {
     /// `workflow` is never written by hand: it stands for a workflow's Voice Cue trigger, with `address` naming the trigger.
     enum Kind: String, Codable, CaseIterable { case osc, httpGet, httpPost, midi, workflow }
     static let workflowPrefix = "workflow:"
@@ -177,7 +177,11 @@ nonisolated final class CueSender: @unchecked Sendable {
         case .midi:
             if let message = CueMIDIMessage(rule.address, value: rule.argument) { midi.send(message) }
         case .workflow:
-            if let id = rule.workflowTriggerID { Task { @MainActor in SchedulerService.shared.voiceCueHeard(triggerID: id) } }
+            if let id = rule.workflowTriggerID {
+                // The rule's value carries the spoken number; it is still the bare slot when the phrase had none.
+                let number = rule.argument == Cues.slot ? nil : rule.argument
+                Task { @MainActor in SchedulerService.shared.voiceCueHeard(triggerID: id, number: number) }
+            }
         }
     }
 }

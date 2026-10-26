@@ -1132,7 +1132,7 @@ extension DraftStepKind {
             case .format:       self = .formatDrive
             case .cleanup:      self = .cleanup
             case .notify:       self = .notify
-            case .controlDeck, .upload, .triggerWorkflow, .liveTranscription: return nil
+            case .controlDeck, .upload, .triggerWorkflow, .liveTranscription, .sendCue: return nil
             }
         }
     }

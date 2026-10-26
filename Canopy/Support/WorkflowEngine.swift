@@ -88,8 +88,8 @@ final class WorkflowEngine: ObservableObject {
 
     // MARK: - Run (all target devices)
 
-    func run(_ workflow: Workflow) async {
-        await start(workflow, targets: targetDevices(for: workflow), triggerChain: [workflow.id])
+    func run(_ workflow: Workflow, spokenNumber: String? = nil) async {
+        await start(workflow, targets: targetDevices(for: workflow), triggerChain: [workflow.id], spokenNumber: spokenNumber)
     }
 
     // MARK: - Run (single device)
@@ -141,7 +141,7 @@ final class WorkflowEngine: ObservableObject {
     /// another Trigger Workflow step so A → B → A can't recurse forever.
     private func start(
         _ workflow: Workflow, targets: [WorkflowTargetDevice], triggerChain: Set<UUID> = [],
-        resuming: WorkflowCheckpoint? = nil
+        resuming: WorkflowCheckpoint? = nil, spokenNumber: String? = nil
     ) async {
         // The Run buttons are already disabled when this would conflict, so
         // this mainly guards races — e.g. the scheduler firing at the same
@@ -157,6 +157,7 @@ final class WorkflowEngine: ObservableObject {
             id: resuming?.id ?? UUID(),
             startedAt: resuming?.startedAt ?? Date()
         )
+        session.spokenNumber = spokenNumber
         if let resuming {
             session.restore(from: resuming)
             let total = workflow.steps.count
@@ -331,7 +332,15 @@ final class WorkflowEngine: ObservableObject {
                 session.beginStep(step.id)
                 session.beginStep(convertStep.id)
 
-                // Live Transcription also runs once for the whole automation: it
+                // Send Cue runs once too: one message per run, not one per device.
+            if case .sendCue(let cue) = step.action {
+                runSendCue(cue, session: session)
+                session.endStep(step.id)
+                stepIndex += 1
+                continue
+            }
+
+            // Live Transcription also runs once for the whole automation: it
             // controls this Mac's live transcript, not any one device.
             if case .liveTranscription(let command, let stopAfterMinutes) = step.action {
                 runLiveTranscription(command: command, stopAfterMinutes: stopAfterMinutes, session: session)
@@ -644,6 +653,8 @@ final class WorkflowEngine: ObservableObject {
         case .triggerWorkflow:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .liveTranscription:
+            break // handled once per run, before the per-deck fan-out — see `start`
+        case .sendCue:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sync(_, let verify, let deleteFromDevice):
             // Removing an original is only safe against a verified copy.
@@ -1863,6 +1874,24 @@ final class WorkflowEngine: ObservableObject {
             session.log("  🔗 Triggering \"\(target.name)\"...")
             Task { await self.start(target, targets: targets, triggerChain: nextChain) }
         }
+    }
+
+    // MARK: - Send Cue step
+
+    private func runSendCue(_ cue: OSCRule, session: WorkflowRunSession) {
+        guard let model = AppModel.current else {
+            session.log("  ❌ Send Cue: the transcriber isn't running")
+            session.errors += 1
+            return
+        }
+        let filled = cue.filled(with: session.spokenNumber ?? "")
+        guard filled.isSendable else {
+            session.log("  ❌ Send Cue: \"\(filled.address)\" can't be sent as written")
+            session.errors += 1
+            return
+        }
+        model.sendOSC(filled)
+        session.log("  📡 Sent \(StepAction.sendCue(filled).summary)")
     }
 
     // MARK: - Live Transcription step

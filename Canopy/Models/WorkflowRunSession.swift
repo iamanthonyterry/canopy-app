@@ -35,6 +35,9 @@ final class WorkflowRunSession: ObservableObject, Identifiable {
     /// on. Removed by the engine when the run finishes.
     var transcriptFilesToDelete: Set<URL> = []
 
+    /// The number a Voice Cue trigger heard ("go cue 5" -> "5"), for a Send Cue step to use.
+    var spokenNumber: String?
+
     /// Where the folder a Create Folder step made lives on the network —
     /// the values behind the {server_ip}, {volume_name} and {folder_name}
     /// email variables. The latest Create Folder step wins.

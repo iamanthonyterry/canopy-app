@@ -1095,7 +1095,7 @@ struct ScheduleTriggerConfigSheet: View {
                     LabeledContent("Phrase") {
                         TextField("start the offload", text: $trigger.voicePhrase).textFieldStyle(.roundedBorder)
                     }
-                    note("Runs when this is said on an audio input that has Trigger OSC turned on (Settings › Transcription). Separate several phrases with commas. The wake word, the cooldown, and the Voice cues switch in the menu all apply.")
+                    note("Runs when this is said on an audio input that has Trigger OSC turned on (Settings › Transcription). Separate several phrases with commas, and write {number} to take a spoken number (“go cue {number}”) for a Send Cue step to use. The wake word, the cooldown, and the Voice cues switch in the menu all apply.")
                     remoteCooldown
                 }
             }

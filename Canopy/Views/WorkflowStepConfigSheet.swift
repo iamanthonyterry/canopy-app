@@ -63,6 +63,7 @@ struct WorkflowStepConfigSheet: View {
     @State private var reframeFollowSubject = true
     @State private var controlCommand: DeckCommand = .start
     @State private var waitValue = 1
+    @State private var cueRule = OSCRule()
     @State private var liveCommand: LiveTranscriptionCommand = .start
     @State private var liveStopAfterOn = false
     @State private var liveStopAfterMinutes = 90
@@ -171,6 +172,9 @@ struct WorkflowStepConfigSheet: View {
 
                 case .liveTranscription:
                     liveTranscriptionFields
+
+                case .sendCue:
+                    sendCueFields
                 }
 
                 Section {
@@ -1034,6 +1038,42 @@ struct WorkflowStepConfigSheet: View {
         selection = TextSelection(insertionPoint: newIndex)
     }
 
+    private var sendCueFields: some View {
+        Group {
+            Picker("Send", selection: $cueRule.kind) {
+                Text("OSC").tag(OSCRule.Kind.osc)
+                Text("Web request (GET)").tag(OSCRule.Kind.httpGet)
+                Text("Web request (POST)").tag(OSCRule.Kind.httpPost)
+                Text("MIDI").tag(OSCRule.Kind.midi)
+            }
+            switch cueRule.kind {
+            case .osc:
+                TextField("Address", text: $cueRule.address, prompt: Text("/cue/{number}/start"))
+                TextField("Value (optional)", text: $cueRule.argument, prompt: Text("1"))
+                TextField("Send to (optional)", text: $cueRule.destination, prompt: Text("host:port, if not the default in Settings"))
+            case .httpGet:
+                TextField("Address", text: $cueRule.address, prompt: Text("http://192.168.1.20:8000/…"))
+            case .httpPost:
+                TextField("Address", text: $cueRule.address, prompt: Text("http://127.0.0.1:8000/api/location/1/0/1/press"))
+                TextField("Body (optional)", text: $cueRule.argument, prompt: Text("{\"on\": true}"))
+            case .midi:
+                TextField("Message", text: $cueRule.address, prompt: Text("note 60, cc 20 or program 5 (add ch 2)"))
+                TextField("Value (0–127)", text: $cueRule.argument, prompt: Text("127"))
+            case .workflow:
+                EmptyView()
+            }
+            HStack {
+                Button("Test") { AppModel.current?.testCue(cueRule) }
+                    .disabled(!cueRule.isSendable || AppModel.current == nil)
+                if !cueRule.isSendable && cueRule.address.count > 1 {
+                    Text("This can't be sent as written.").font(.canopyCaption).foregroundStyle(.orange)
+                }
+            }
+            Text("Write {number} in the address or value to use the number spoken to a Voice Cue trigger (a phrase like “go cue {number}”). OSC goes to the address set in Settings › Transcription unless you give one here. MIDI goes out on a source named “Transcriber” that other apps can pick as an input.")
+                .font(.canopyCaption).foregroundStyle(.secondary)
+        }
+    }
+
     private var liveTranscriptionFields: some View {
         Group {
             Picker("Action", selection: $liveCommand) {
@@ -1067,6 +1107,8 @@ struct WorkflowStepConfigSheet: View {
         switch step.action {
         case .controlDeck(let command):
             controlCommand = command
+        case .sendCue(let cue):
+            cueRule = cue
         case .liveTranscription(let command, let stopAfterMinutes):
             liveCommand = command
             liveStopAfterOn = stopAfterMinutes > 0
@@ -1156,6 +1198,8 @@ struct WorkflowStepConfigSheet: View {
         switch step.kind {
         case .controlDeck:
             step.action = .controlDeck(command: controlCommand)
+        case .sendCue:
+            step.action = .sendCue(cueRule)
         case .liveTranscription:
             step.action = .liveTranscription(command: liveCommand, stopAfterMinutes: liveCommand == .start && liveStopAfterOn ? liveStopAfterMinutes : 0)
         case .wait:

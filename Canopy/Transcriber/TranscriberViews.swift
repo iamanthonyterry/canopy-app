@@ -277,56 +277,16 @@ struct TranscriberSettingsView: View {
                 }
                 Button("Add an input") { model.settings.inputs.append(AudioInput(sendToSite: false, triggerOSC: true)) }
                     .disabled(model.running)
-                Text("Every input is listened to at once. “Send to website” puts its speech in the transcript; “Trigger OSC” runs the phrases below on it. An input can do both. The level meter and sensitivity below follow the first input that sends to the website.")
+                Text("Every input is listened to at once. “Send to website” puts its speech in the transcript; “Trigger OSC” listens for the voice phrases of your automations on it. An input can do both. The level meter and sensitivity below follow the first input that sends to the website.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("OSC") {
+            Section("Voice commands") {
                 HStack(alignment: .top) {
-                    Field("Send OSC to") { TextField("Send OSC to", text: $model.settings.oscHost, prompt: Text("127.0.0.1")) }
+                    Field("Send OSC to by default") { TextField("Send OSC to", text: $model.settings.oscHost, prompt: Text("127.0.0.1")) }
                     Field("Port", width: 80) { TextField("Port", value: $model.settings.oscPort, format: .number.grouping(.never), prompt: Text("53000")) }
                 }
-                ForEach($model.settings.oscRules) { $r in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .bottom) {
-                            Field("When I say") { TextField("When I say", text: $r.phrase, prompt: Text("next slide")) }
-                            Button("Test") { model.testCue(r) }.disabled(!r.isSendable)
-                            Button(role: .destructive) {
-                                model.settings.oscRules.removeAll { $0.id == r.id }
-                            } label: { Image(systemName: "trash") }
-                        }
-                        Picker("Send", selection: $r.kind) {
-                            Text("OSC").tag(OSCRule.Kind.osc)
-                            Text("Web request (GET)").tag(OSCRule.Kind.httpGet)
-                            Text("Web request (POST)").tag(OSCRule.Kind.httpPost)
-                            Text("MIDI").tag(OSCRule.Kind.midi)
-                        }
-                        switch r.kind {
-                        case .osc:
-                            HStack(alignment: .top) {
-                                Field("Address") { TextField("Address", text: $r.address, prompt: Text("/cue/{number}/start")) }
-                                Field("Value (optional)", width: 130) { TextField("Value", text: $r.argument, prompt: Text("1")) }
-                            }
-                            Field("Send to (optional)") { TextField("Send to", text: $r.destination, prompt: Text("host:port, if not the one above")) }
-                        case .httpGet:
-                            Field("Address") { TextField("Address", text: $r.address, prompt: Text("http://192.168.1.20:8000/…")) }
-                        case .httpPost:
-                            Field("Address") { TextField("Address", text: $r.address, prompt: Text("http://127.0.0.1:8000/api/location/1/0/1/press")) }
-                            Field("Body (optional)") { TextField("Body", text: $r.argument, prompt: Text("{\"on\": true}")) }
-                        case .midi:
-                            HStack(alignment: .top) {
-                                Field("Message") { TextField("Message", text: $r.address, prompt: Text("note 60, cc 20 or program 5 (add ch 2)")) }
-                                Field("Value (0–127)", width: 130) { TextField("Value", text: $r.argument, prompt: Text("127")) }
-                            }
-                        case .workflow:
-                            EmptyView()  // a workflow's Voice Cue trigger, edited with the workflow
-                        }
-                        if !r.isSendable && r.address.count > 1 {
-                            Text("This can’t be sent as written, so the phrase won’t fire.").font(.caption).foregroundStyle(.orange)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-                Button("Add a phrase") { model.settings.oscRules.append(OSCRule()) }
+                Text("Voice phrases are set up on an automation: give it a Voice Cue trigger (the words to say) and a Send Cue step (the OSC, MIDI or web request to send).")
+                    .font(.caption).foregroundStyle(.secondary)
                 Toggle("Quick model for commands-only inputs", isOn: $model.settings.oscFastModel)
                 Text(model.commandModelNote ?? "An input that only triggers cues gets a small speech model of its own, so a cue fires about a second sooner and never waits for the transcript. It is a one-time 150 MB download; without internet the main model is used.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -342,7 +302,7 @@ struct TranscriberSettingsView: View {
                         ForEach(model.cueLog.prefix(5)) { Text(CueRow.summary($0)).font(.caption).foregroundStyle($0.outcome == .sent ? .primary : .secondary) }
                     }
                 }
-Text("Only inputs with “Trigger OSC” on send these, and “Voice cues” in the menu bar switches them all off. A phrase matches whole words, ignoring case and punctuation. Separate several ways of saying it with commas (“next slide, advance”). Write {number} in a phrase to take a spoken number (“go cue {number}”) and again in the address or value to use it. MIDI goes out on a source named “Transcriber” that other apps can pick as an input.")
+Text("Only inputs with “Trigger OSC” on listen for voice phrases, and “Voice cues” in the menu bar switches them all off. A phrase matches whole words, ignoring case and punctuation.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Tuning") {

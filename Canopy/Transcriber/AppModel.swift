@@ -80,6 +80,7 @@ final class AppModel: ObservableObject {
     init() {
         (settings, token) = FileTest.isSafeMode ? (Settings(), "") : SettingsStore.load()
         Self.current = self
+        migrateVoiceRules()
         refreshDevices()
         loadLanguages()
         updates.model = self
@@ -558,12 +559,32 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Voice phrases used to be set up here, one by one. They are automations now: each saved phrase becomes an
+    /// automation with a Voice Cue trigger and a Send Cue step, once, so existing cues keep working.
+    private func migrateVoiceRules() {
+        guard !FileTest.isSafeMode, !settings.oscRules.isEmpty else { return }
+        let state = AppState.shared
+        for rule in settings.oscRules where rule.kind != .workflow && !rule.phrase.trimmingCharacters(in: .whitespaces).isEmpty {
+            let phrase = rule.phrase.trimmingCharacters(in: .whitespaces)
+            let first = Cues.alternatives(phrase).first ?? phrase
+            state.workflows.append(Workflow(
+                name: "Voice: \(first)",
+                steps: [WorkflowStep(action: .sendCue(rule))],
+                triggers: [ScheduleSettings(isEnabled: true, mode: .voiceCue, voicePhrase: phrase)],
+                sortOrder: state.workflows.count))
+        }
+        settings.oscRules = []
+        saveSettings()
+        SchedulerService.shared.sync()
+    }
+
     /// Every phrase that can fire something: the voice cues in Settings, and the Voice Cue triggers of workflows.
     var cueRules: [OSCRule] {
         let triggers = AppState.shared.workflows.flatMap(\.activeTriggers).filter {
             $0.mode == .voiceCue && !$0.voicePhrase.trimmingCharacters(in: .whitespaces).isEmpty
         }
-        return settings.oscRules + triggers.map { OSCRule(phrase: $0.voicePhrase, kind: .workflow, address: OSCRule.workflowPrefix + $0.id.uuidString) }
+        // The value is the slot so a spoken {number} reaches the automation (see CueSender).
+        return settings.oscRules + triggers.map { OSCRule(phrase: $0.voicePhrase, kind: .workflow, address: OSCRule.workflowPrefix + $0.id.uuidString, argument: Cues.slot) }
     }
 
     /// OSC sent to this Mac: /transcriber/start, /stop, /clear, /save, and /cues (1 or 0, or /cues/on and /cues/off).

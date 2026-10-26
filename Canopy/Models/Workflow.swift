@@ -34,7 +34,7 @@ enum LiveTranscriptionCommand: String, Codable, CaseIterable, Identifiable {
 // MARK: - Step Kind
 // The catalog of step types users can drag into a workflow.
 enum StepKind: String, Codable, CaseIterable, Identifiable {
-    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription
+    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue
 
     var id: String { rawValue }
 
@@ -59,6 +59,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .notify:          return "Notification"
         case .triggerWorkflow: return "Trigger Automation"
         case .liveTranscription: return "Live Transcription"
+        case .sendCue:         return "Send Cue"
         }
     }
 
@@ -83,6 +84,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .notify:          return "Send an email"
         case .triggerWorkflow: return "Start another automation running"
         case .liveTranscription: return "Start or stop the live transcript sent to the website"
+        case .sendCue:         return "Send an OSC message, MIDI message or web request"
         }
     }
 
@@ -107,6 +109,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .notify:          return "envelope"
         case .triggerWorkflow: return "arrow.triangle.branch"
         case .liveTranscription: return "waveform"
+        case .sendCue:         return "dot.radiowaves.left.and.right"
         }
     }
 
@@ -135,7 +138,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
     /// somewhere to run for. The rest (wait, notify, webhook…) run fine
     /// with no device or folder at all.
     var worksOnFiles: Bool {
-        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription].contains(self)
+        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue].contains(self)
     }
 
     var color: Color {
@@ -159,6 +162,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .notify:          return .teal
         case .triggerWorkflow: return .cyan
         case .liveTranscription: return .red
+        case .sendCue:         return .teal
         }
     }
 }
@@ -421,6 +425,9 @@ enum StepAction: Hashable {
     /// Starts or stops the live transcript. With `stopAfterMinutes` above 0, a
     /// start also stops it that long afterwards (0 = keep going until a Stop step).
     case liveTranscription(command: LiveTranscriptionCommand, stopAfterMinutes: Int)
+    /// Sends one cue — OSC, MIDI or a web request. The rule's phrase is unused; `{number}` in the
+    /// address or value becomes the number spoken to a Voice Cue trigger that started the run.
+    case sendCue(OSCRule)
 
     var kind: StepKind {
         switch self {
@@ -443,6 +450,7 @@ enum StepAction: Hashable {
         case .notify:          return .notify
         case .triggerWorkflow: return .triggerWorkflow
         case .liveTranscription: return .liveTranscription
+        case .sendCue: return .sendCue
         }
     }
 
@@ -467,6 +475,7 @@ enum StepAction: Hashable {
         case .notify:          return .notify(header: "Automation update", message: "", recipients: [], sendPerDrive: true)
         case .triggerWorkflow: return .triggerWorkflow(workflowID: nil, waitForCompletion: false)
         case .liveTranscription: return .liveTranscription(command: .start, stopAfterMinutes: 0)
+        case .sendCue: return .sendCue(OSCRule())
         }
     }
 
@@ -554,6 +563,14 @@ enum StepAction: Hashable {
             case .start: return stopAfterMinutes > 0 ? "Starts the live transcript, then stops it after \(WaitDurationFormatter.string(forMinutes: stopAfterMinutes))" : "Starts the live transcript and keeps it going"
             case .stop:  return "Stops the live transcript"
             }
+        case .sendCue(let cue):
+            switch cue.kind {
+            case .osc:               return "OSC \(cue.address)" + (cue.argument.isEmpty ? "" : " \(cue.argument)")
+            case .httpGet:           return "GET \(cue.address)"
+            case .httpPost:          return "POST \(cue.address)"
+            case .midi:              return "MIDI \(cue.address)" + (cue.argument.isEmpty ? "" : " \(cue.argument)")
+            case .workflow:          return "Starts an automation"
+            }
         case .upload:
             return "Coming soon — this step is skipped for now"
         case .reframe(let format, let followSubject):
@@ -584,7 +601,7 @@ enum StepAction: Hashable {
 // MARK: - StepAction Codable Implementation
 extension StepAction: Codable {
     enum CodingKeys: String, CodingKey {
-        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription
+        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue
         /// Only to recognise a step saved before the Export Queue was removed.
         case queueClips
     }
@@ -660,6 +677,10 @@ extension StepAction: Codable {
 
     enum LiveTranscriptionKeys: String, CodingKey {
         case command, stopAfterMinutes
+    }
+
+    enum SendCueKeys: String, CodingKey {
+        case cue
     }
 
     enum CleanupKeys: String, CodingKey {
@@ -795,6 +816,9 @@ extension StepAction: Codable {
             // Absent in workflows saved before a trigger could pick a folder.
             let folder = try nested.decodeIfPresent(TriggerFolder.self, forKey: .folder) ?? .ownTargets
             self = .triggerWorkflow(workflowID: workflowID, waitForCompletion: waitForCompletion, folder: folder)
+        } else if container.contains(.sendCue) {
+            let nested = try container.nestedContainer(keyedBy: SendCueKeys.self, forKey: .sendCue)
+            self = .sendCue(try nested.decodeIfPresent(OSCRule.self, forKey: .cue) ?? OSCRule())
         } else if container.contains(.liveTranscription) {
             let nested = try container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
             let command = try nested.decodeIfPresent(LiveTranscriptionCommand.self, forKey: .command) ?? .start
@@ -885,6 +909,9 @@ extension StepAction: Codable {
             try nested.encode(workflowID, forKey: .workflowID)
             try nested.encode(waitForCompletion, forKey: .waitForCompletion)
             try nested.encode(folder, forKey: .folder)
+        case .sendCue(let cue):
+            var nested = container.nestedContainer(keyedBy: SendCueKeys.self, forKey: .sendCue)
+            try nested.encode(cue, forKey: .cue)
         case .liveTranscription(let command, let stopAfterMinutes):
             var nested = container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
             try nested.encode(command, forKey: .command)
@@ -1174,7 +1201,7 @@ struct Workflow: Identifiable, Codable, Hashable {
 
     /// True if any step needs the shared sync destination mounted.
     var needsDestinationMount: Bool {
-        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription].contains($0.kind) }
+        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue].contains($0.kind) }
     }
 
     /// The destination configured on this workflow's Sync step. Falls back

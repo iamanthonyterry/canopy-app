@@ -182,7 +182,8 @@ class SchedulerService: ObservableObject {
     private func fire(
         _ workflow: Workflow,
         device: WorkflowEngine.WorkflowTargetDevice? = nil,
-        reason: String
+        reason: String,
+        spokenNumber: String? = nil
     ) -> Bool {
         guard appState.canRun(workflow) else { return false }
         appState.log("🕐 \(reason): \(workflow.name)")
@@ -190,7 +191,7 @@ class SchedulerService: ObservableObject {
             if let device {
                 await workflowEngine.runDevice(workflow, target: device)
             } else {
-                await workflowEngine.run(workflow)
+                await workflowEngine.run(workflow, spokenNumber: spokenNumber)
             }
         }
         return true
@@ -364,19 +365,19 @@ class SchedulerService: ObservableObject {
     }
 
     /// A voice cue's phrase was heard (already past the wake word and cooldown checks in the transcriber).
-    func voiceCueHeard(triggerID: UUID) {
+    func voiceCueHeard(triggerID: UUID, number: String? = nil) {
         for workflow in appState.workflows {
             if let trigger = workflow.triggers.first(where: { $0.id == triggerID && $0.isEnabled && $0.mode == .voiceCue }) {
-                fireRemote(workflow, trigger: trigger, reason: "Heard “\(trigger.voicePhrase)”")
+                fireRemote(workflow, trigger: trigger, reason: "Heard “\(trigger.voicePhrase)”", spokenNumber: number)
             }
         }
     }
 
     /// Starts the workflow now. Unlike an event from a deck, a cue is never held back for later: if a device it uses is
     /// busy it is dropped, with a log line, because a run starting minutes late would be a surprise.
-    private func fireRemote(_ workflow: Workflow, trigger: ScheduleSettings, reason: String) {
+    private func fireRemote(_ workflow: Workflow, trigger: ScheduleSettings, reason: String, spokenNumber: String? = nil) {
         if let last = lastRemoteFire[trigger.id], Date().timeIntervalSince(last) < Double(max(trigger.cooldownSeconds, 0)) { return }
-        if fire(workflow, reason: reason) {
+        if fire(workflow, reason: reason, spokenNumber: spokenNumber) {
             lastRemoteFire[trigger.id] = Date()
         } else {
             appState.log("⚠️ \(reason): not started — a device “\(workflow.name)” uses is busy")
