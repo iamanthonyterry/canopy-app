@@ -19,12 +19,11 @@ struct WebsiteCard: View {
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
     }
 
     private var notConnected: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Connect this Mac to your campus to share workflow progress on the website, keep workflows in step with your other Macs at the campus, and send email from workflows.")
+            Text("Connect this Mac to your campus to share automation progress on the website, keep automations in step with your other Macs at the campus, and send email from automations.")
                 .font(.canopyBody).foregroundStyle(.secondary)
             Button {
                 UserDefaults.standard.set(SettingsTab.transcription.rawValue, forKey: SettingsTab.storageKey)
@@ -36,7 +35,7 @@ struct WebsiteCard: View {
     private var connected: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.canopySage)
+                Image(systemName: "checkmark.seal.fill").foregroundStyle(Color.green)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(connection.campusName.isEmpty ? "Connected to a campus" : "Connected to \(connection.campusName)").font(.canopySubheadline)
                     if let host = connection.site?.host { Text(host).font(.canopyCaption).foregroundStyle(.secondary) }
@@ -46,7 +45,7 @@ struct WebsiteCard: View {
             }
             Divider()
 
-            row("Workflows", icon: "arrow.triangle.2.circlepath",
+            row("Automations", icon: "arrow.triangle.2.circlepath",
                 detail: sync.isEnabled ? SyncStatus.text(sync) : "Not shared with this campus's other Macs",
                 ok: sync.isEnabled && sync.lastError == nil) {
                 Toggle("Sync", isOn: $sync.isEnabled).labelsHidden().toggleStyle(.switch).controlSize(.small)
@@ -65,10 +64,10 @@ struct WebsiteCard: View {
     private func row(_ title: String, icon: String, detail: String, ok: Bool,
                      @ViewBuilder trailing: () -> some View = { EmptyView() }) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon).frame(width: 20).foregroundStyle(ok ? Color.canopySage : .secondary)
+            Image(systemName: icon).frame(width: 20).foregroundStyle(ok ? Color.green : .secondary)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.canopySubheadline)
-                Text(detail).font(.canopyCaption).foregroundStyle(ok ? Color.secondary : Color.canopyRust)
+                Text(detail).font(.canopyCaption).foregroundStyle(ok ? Color.secondary : Color.orange)
             }
             Spacer()
             trailing()

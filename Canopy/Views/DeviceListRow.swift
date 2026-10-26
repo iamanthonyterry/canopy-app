@@ -7,8 +7,8 @@ struct StatusDot: View {
 
     private var color: Color {
         switch status {
-        case .online:                          .canopySage
-        case .offline, .noMedia:               .canopyRust
+        case .online:                          .green
+        case .offline, .noMedia:               .orange
         case .unauthorized, .pathNotFound,
              .transcoding:                     .orange
         case .syncing:                         .accentColor
@@ -126,7 +126,7 @@ struct LocalFolderListRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Circle().fill(folder.exists ? Color.canopySage : Color.canopyRust).frame(width: 8, height: 8)
+            Circle().fill(folder.exists ? Color.green : Color.orange).frame(width: 8, height: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(folder.name).font(.canopyBody)
                 Text(folder.path).font(.canopyCaption).foregroundStyle(.secondary)

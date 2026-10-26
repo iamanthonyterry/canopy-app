@@ -78,7 +78,7 @@ struct RemoteMappingEditSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text(existingMapping == nil ? "Add Mapping" : "Edit Mapping")
-                    .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                    .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(existingMapping == nil ? "Add" : "Save") { save() }
@@ -86,7 +86,7 @@ struct RemoteMappingEditSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             Form {
                 Section("Name") {
@@ -99,7 +99,6 @@ struct RemoteMappingEditSheet: View {
             .formStyle(.grouped)
         }
         .frame(width: 480)
-        .background(Color.canopyPaper)
         .onAppear(perform: selectDefaultTargetIfNeeded)
         .onChange(of: osc.receivedMessages.count) { _, _ in
             guard isListeningOSC, let last = osc.receivedMessages.last else { return }

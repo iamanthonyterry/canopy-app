@@ -36,7 +36,7 @@ struct DeckEditSheet: View {
             // MARK: Header
             HStack {
                 Text(existingDeck == nil ? "Add HyperDeck" : "Edit HyperDeck")
-                    .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                    .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(existingDeck == nil ? "Add" : "Save") { save() }
@@ -44,7 +44,7 @@ struct DeckEditSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             Form {
                 // MARK: Device Info
@@ -132,7 +132,6 @@ struct DeckEditSheet: View {
             .formStyle(.grouped)
         }
         .frame(width: 480)
-        .background(Color.canopyPaper)
         .task(id: BrowseProbeKey(ip: ipAddress, user: username, pass: password)) {
             await refreshBrowseAvailability()
         }
@@ -180,9 +179,9 @@ struct DeckEditSheet: View {
     @ViewBuilder
     private var testResultLabel: some View {
         let (text, systemImage, color): (String, String, Color) = switch pingStatus {
-        case .online:       ("Connected & logged in", "checkmark.circle.fill", .canopySage)
+        case .online:       ("Connected & logged in", "checkmark.circle.fill", .green)
         case .unauthorized: ("Reachable — login failed", "exclamationmark.triangle.fill", .orange)
-        default:            ("No Response", "xmark.circle.fill", .canopyRust)
+        default:            ("No Response", "xmark.circle.fill", .orange)
         }
         Label(text, systemImage: systemImage)
             .foregroundStyle(color)

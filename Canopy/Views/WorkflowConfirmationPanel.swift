@@ -125,14 +125,14 @@ struct WorkflowConfirmationPanelContent: View {
                 if let step = session.pendingConfirmationStep {
                     row(session: session, step: step)
                     if session.id != sessions.last?.id {
-                        Rectangle().fill(Color.canopyRule).frame(height: 1)
+                        Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
                     }
                 }
             }
         }
         .font(.canopyBody)
         .frame(width: 440)
-        .background(Color.canopyPaperElevated)
+        .background(Color(nsColor: .controlBackgroundColor))
     }
 
     private func row(session: WorkflowRunSession, step: WorkflowStep) -> some View {

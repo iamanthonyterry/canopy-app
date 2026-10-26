@@ -22,13 +22,12 @@ struct PerformanceSettingsView: View {
                     .font(.canopyCaption)
                 }
 
-                Text("Caps how many clips convert at once across every deck in a workflow. Higher isn't always faster — most Macs only have a couple of hardware encoder slots, so raising this past what your Mac can actually run in parallel can make conversions slower, not faster.")
+                Text("Caps how many clips convert at once across every deck in an automation. Higher isn't always faster — most Macs only have a couple of hardware encoder slots, so raising this past what your Mac can actually run in parallel can make conversions slower, not faster.")
                     .font(.canopyCaption2)
                     .foregroundStyle(.tertiary)
             }
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
     }
 }

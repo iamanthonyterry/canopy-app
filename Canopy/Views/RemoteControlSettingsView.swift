@@ -19,7 +19,6 @@ struct RemoteControlSettingsView: View {
             .padding(.vertical, 4)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
         .sheet(item: $sheetContext) { context in
             RemoteMappingEditSheet(mapping: context.mapping) { saved in
                 if context.mapping != nil {
@@ -224,7 +223,7 @@ private extension RemoteControlSettingsView {
                 Image(systemName: "trash")
             }
             .buttonStyle(.borderless)
-            .tint(Color.canopyRust)
+            .tint(Color.orange)
         }
         .padding(.vertical, 2)
     }
@@ -242,7 +241,7 @@ private extension RemoteControlSettingsView {
         } else if isActive {
             Label("Listening", systemImage: "checkmark.circle.fill")
                 .font(.canopyCaption)
-                .foregroundStyle(Color.canopySage)
+                .foregroundStyle(Color.green)
         } else {
             Label("Stopped", systemImage: "circle")
                 .font(.canopyCaption)

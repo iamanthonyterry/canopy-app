@@ -112,8 +112,8 @@ final class AlertingService {
 
     private func alarmMessage(for status: DeckStatus, deckName: String) -> String {
         switch status {
-        case .offline:      return "\(deckName) went offline while recording or running a workflow."
-        case .unauthorized: return "\(deckName) lost its login while recording or running a workflow."
+        case .offline:      return "\(deckName) went offline while recording or running an automation."
+        case .unauthorized: return "\(deckName) lost its login while recording or running an automation."
         case .pathNotFound: return "\(deckName)'s remote folder can no longer be found."
         case .noMedia:      return "\(deckName) has no drive installed — recording may have stopped."
         default:            return "\(deckName) needs attention."

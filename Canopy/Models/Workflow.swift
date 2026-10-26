@@ -16,10 +16,25 @@ enum DeckCommand: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Live Transcription Command
+// What the "Live Transcription" step does to the Transcription tab's live transcript.
+enum LiveTranscriptionCommand: String, Codable, CaseIterable, Identifiable {
+    case start, stop
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .start: return "Start Transcribing"
+        case .stop:  return "Stop Transcribing"
+        }
+    }
+}
+
 // MARK: - Step Kind
 // The catalog of step types users can drag into a workflow.
 enum StepKind: String, Codable, CaseIterable, Identifiable {
-    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow
+    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription
 
     var id: String { rawValue }
 
@@ -42,7 +57,8 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .format:          return "Format Drive"
         case .cleanup:         return "Cleanup"
         case .notify:          return "Notification"
-        case .triggerWorkflow: return "Trigger Workflow"
+        case .triggerWorkflow: return "Trigger Automation"
+        case .liveTranscription: return "Live Transcription"
         }
     }
 
@@ -65,7 +81,8 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .format:          return "Permanently erase the device's drive"
         case .cleanup:         return "Delete files older than N days in the destination folder"
         case .notify:          return "Send an email"
-        case .triggerWorkflow: return "Start another workflow running"
+        case .triggerWorkflow: return "Start another automation running"
+        case .liveTranscription: return "Start or stop the live transcript sent to the website"
         }
     }
 
@@ -89,6 +106,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .cleanup:         return "trash"
         case .notify:          return "envelope"
         case .triggerWorkflow: return "arrow.triangle.branch"
+        case .liveTranscription: return "waveform"
         }
     }
 
@@ -117,7 +135,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
     /// somewhere to run for. The rest (wait, notify, webhook…) run fine
     /// with no device or folder at all.
     var worksOnFiles: Bool {
-        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload].contains(self)
+        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription].contains(self)
     }
 
     var color: Color {
@@ -140,6 +158,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .cleanup:         return .gray
         case .notify:          return .teal
         case .triggerWorkflow: return .cyan
+        case .liveTranscription: return .red
         }
     }
 }
@@ -399,6 +418,9 @@ enum StepAction: Hashable {
     /// `folder` points the triggered workflow at a folder this workflow made,
     /// rather than at the triggered workflow's own devices and folders.
     case triggerWorkflow(workflowID: UUID?, waitForCompletion: Bool, folder: TriggerFolder = .ownTargets)
+    /// Starts or stops the live transcript. With `stopAfterMinutes` above 0, a
+    /// start also stops it that long afterwards (0 = keep going until a Stop step).
+    case liveTranscription(command: LiveTranscriptionCommand, stopAfterMinutes: Int)
 
     var kind: StepKind {
         switch self {
@@ -420,6 +442,7 @@ enum StepAction: Hashable {
         case .cleanup:         return .cleanup
         case .notify:          return .notify
         case .triggerWorkflow: return .triggerWorkflow
+        case .liveTranscription: return .liveTranscription
         }
     }
 
@@ -441,8 +464,9 @@ enum StepAction: Hashable {
         case .reframe:         return .reframe(format: .vertical, followSubject: true)
         case .format:          return .format
         case .cleanup:         return .cleanup(retentionDays: 30)
-        case .notify:          return .notify(header: "Workflow update", message: "", recipients: [], sendPerDrive: true)
+        case .notify:          return .notify(header: "Automation update", message: "", recipients: [], sendPerDrive: true)
         case .triggerWorkflow: return .triggerWorkflow(workflowID: nil, waitForCompletion: false)
+        case .liveTranscription: return .liveTranscription(command: .start, stopAfterMinutes: 0)
         }
     }
 
@@ -463,6 +487,8 @@ enum StepAction: Hashable {
     var shortLabel: String {
         switch self {
         case .controlDeck(let command):
+            return command.title
+        case .liveTranscription(let command, _):
             return command.title
         default:
             return kind.title
@@ -496,7 +522,7 @@ enum StepAction: Hashable {
             case .cloudStore:
                 return "Downloads any new .mov files to the selected cloud store" + suffix
             case .createdFolder:
-                return "Downloads any new .mov files into the folder created earlier in this workflow" + suffix
+                return "Downloads any new .mov files into the folder created earlier in this automation" + suffix
             }
         case .convert(let preset, let deleteOriginal, let maxParallelJobs, let convertInPlace):
             return "\(preset.displayName) preset" + (deleteOriginal ? " · deletes original" : " · keeps original") + " · \(maxParallelJobs) parallel" + (convertInPlace ? " · converts in place" : " · saves to a Converted folder")
@@ -523,6 +549,11 @@ enum StepAction: Hashable {
             case .localFolder: place = "the selected local folder"
             }
             return "Copies files to \(place)" + (verify ? " · verified with SHA-256" : "") + (includeSidecars ? " · with transcripts and clips" : "")
+        case .liveTranscription(let command, let stopAfterMinutes):
+            switch command {
+            case .start: return stopAfterMinutes > 0 ? "Starts the live transcript, then stops it after \(WaitDurationFormatter.string(forMinutes: stopAfterMinutes))" : "Starts the live transcript and keeps it going"
+            case .stop:  return "Stops the live transcript"
+            }
         case .upload:
             return "Coming soon — this step is skipped for now"
         case .reframe(let format, let followSubject):
@@ -533,13 +564,13 @@ enum StepAction: Hashable {
             return "Deletes files older than \(days) day\(days == 1 ? "" : "s") in the destination folder"
         case .notify(let header, _, let recipients, let sendPerDrive):
             let who = recipients.isEmpty ? "no recipients set" : "\(recipients.count) recipient\(recipients.count == 1 ? "" : "s")"
-            let mode = sendPerDrive ? "per drive" : "entire workflow"
+            let mode = sendPerDrive ? "per drive" : "entire automation"
             return "\"\(header)\" → \(who) (\(mode))"
         case .triggerWorkflow(let workflowID, let waitForCompletion, let folder):
-            guard workflowID != nil else { return "No workflow selected" }
+            guard workflowID != nil else { return "No automation selected" }
             let start = waitForCompletion
-                ? "Starts the selected workflow and waits for it to finish"
-                : "Starts the selected workflow and continues immediately"
+                ? "Starts the selected automation and waits for it to finish"
+                : "Starts the selected automation and continues immediately"
             switch folder {
             case .ownTargets:
                 return start
@@ -553,7 +584,7 @@ enum StepAction: Hashable {
 // MARK: - StepAction Codable Implementation
 extension StepAction: Codable {
     enum CodingKeys: String, CodingKey {
-        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow
+        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription
         /// Only to recognise a step saved before the Export Queue was removed.
         case queueClips
     }
@@ -625,6 +656,10 @@ extension StepAction: Codable {
 
     enum ReframeKeys: String, CodingKey {
         case format, followSubject
+    }
+
+    enum LiveTranscriptionKeys: String, CodingKey {
+        case command, stopAfterMinutes
     }
 
     enum CleanupKeys: String, CodingKey {
@@ -760,6 +795,11 @@ extension StepAction: Codable {
             // Absent in workflows saved before a trigger could pick a folder.
             let folder = try nested.decodeIfPresent(TriggerFolder.self, forKey: .folder) ?? .ownTargets
             self = .triggerWorkflow(workflowID: workflowID, waitForCompletion: waitForCompletion, folder: folder)
+        } else if container.contains(.liveTranscription) {
+            let nested = try container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
+            let command = try nested.decodeIfPresent(LiveTranscriptionCommand.self, forKey: .command) ?? .start
+            let stopAfterMinutes = try nested.decodeIfPresent(Int.self, forKey: .stopAfterMinutes) ?? 0
+            self = .liveTranscription(command: command, stopAfterMinutes: stopAfterMinutes)
         } else {
             throw DecodingError.dataCorrupted(DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unknown StepAction case"))
         }
@@ -845,6 +885,10 @@ extension StepAction: Codable {
             try nested.encode(workflowID, forKey: .workflowID)
             try nested.encode(waitForCompletion, forKey: .waitForCompletion)
             try nested.encode(folder, forKey: .folder)
+        case .liveTranscription(let command, let stopAfterMinutes):
+            var nested = container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
+            try nested.encode(command, forKey: .command)
+            try nested.encode(stopAfterMinutes, forKey: .stopAfterMinutes)
         }
     }
 }
@@ -1130,7 +1174,7 @@ struct Workflow: Identifiable, Codable, Hashable {
 
     /// True if any step needs the shared sync destination mounted.
     var needsDestinationMount: Bool {
-        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload].contains($0.kind) }
+        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription].contains($0.kind) }
     }
 
     /// The destination configured on this workflow's Sync step. Falls back

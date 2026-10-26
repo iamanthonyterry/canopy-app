@@ -65,7 +65,9 @@ struct MenuContent: View {
                 ForEach(model.cueLog.prefix(12)) { Text(CueRow.summary($0)) }
             }
         }
-        Toggle("Only \(Schedule.summary(model.settings))", isOn: Binding(get: { model.settings.scheduleOn }, set: { model.settings.scheduleOn = $0; model.apply() }))
+        if model.settings.scheduleOn {
+            Toggle("Only \(Schedule.summary(model.settings))", isOn: Binding(get: { model.settings.scheduleOn }, set: { model.settings.scheduleOn = $0; model.apply() }))
+        }
         Divider()
         WorkflowMenuSection()
         Divider()
@@ -114,7 +116,7 @@ enum CueRow {
     /// What a rule does: the OSC address and value, or the workflow a Voice Cue trigger runs.
     private static func does(_ r: OSCRule) -> String {
         guard let id = r.workflowTriggerID else { return "\(r.address)\(r.argument.isEmpty ? "" : " " + r.argument)" }
-        let name = AppState.shared.workflows.first { $0.triggers.contains { $0.id == id } }?.name ?? "a workflow"
+        let name = AppState.shared.workflows.first { $0.triggers.contains { $0.id == id } }?.name ?? "an automation"
         return "runs “\(name)”"
     }
 
@@ -193,57 +195,17 @@ struct TranscriberSettingsView: View {
                 Toggle("Start listening when the app opens", isOn: $model.settings.autoStart)
                 Toggle("Open at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
             }
-            Section("Schedule") {
-                Toggle("Send to website only during this schedule (OSC inputs always listen)", isOn: $model.settings.scheduleOn)
-                Picker("Times from", selection: $model.settings.pcoOn) {
-                    Text("Set manually").tag(false)
-                    Text("Planning Center").tag(true)
+            Section("Start and stop") {
+                Text("Transcription now starts from an automation. Add a Live Transcription step to an automation and give it a Daily or Planning Center Service trigger, and it will start (and stop) the transcript for you.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if model.settings.scheduleOn {
+                    Toggle("Also keep the old schedule on (\(Schedule.summary(model.settings)))", isOn: $model.settings.scheduleOn)
+                    Text("This schedule from before automations still limits when the app sends to the website. Turn it off once an automation takes over.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
-                .pickerStyle(.segmented)
-                .onChange(of: model.settings.pcoOn) { _, on in if on { Task { await model.refreshPCOTimes() } } }
-                if model.settings.pcoOn {
-                    PlanningCenterSection(model: model)
-                } else {
-                    ForEach($model.settings.scheduleWindows) { $w in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Picker("", selection: Binding(get: { w.date != nil }, set: { w.date = $0 ? (w.date ?? Date()) : nil })) {
-                                    Text("Repeats weekly").tag(false)
-                                    Text("One time").tag(true)
-                                }
-                                .pickerStyle(.segmented).labelsHidden().fixedSize()
-                                Spacer()
-                                Button(role: .destructive) {
-                                    model.settings.scheduleWindows.removeAll { $0.id == w.id }
-                                } label: { Image(systemName: "trash") }
-                            }
-                            if w.date != nil {
-                                DatePicker("On", selection: Binding(get: { w.date ?? Date() }, set: { w.date = $0 }), displayedComponents: .date)
-                                if let d = w.date, d < Calendar.current.startOfDay(for: Date()) {
-                                    Text("This date has passed.").font(.caption).foregroundStyle(.orange)
-                                }
-                            } else {
-                                HStack {
-                                    ForEach(1...7, id: \.self) { d in
-                                        Toggle(Calendar.current.veryShortWeekdaySymbols[d - 1], isOn: Binding(
-                                            get: { w.days.contains(d) },
-                                            set: { if $0 { w.days.insert(d) } else { w.days.remove(d) } }))
-                                            .toggleStyle(.button)
-                                    }
-                                }
-                            }
-                            HStack {
-                                DatePicker("From", selection: Binding(get: { Schedule.date(w.start) }, set: { w.start = Schedule.minutes($0) }), displayedComponents: .hourAndMinute)
-                                DatePicker("to", selection: Binding(get: { Schedule.date(w.end) }, set: { w.end = Schedule.minutes($0) }), displayedComponents: .hourAndMinute)
-                            }
-                            if w.end <= w.start {
-                                Text("End must be after start (same day).").font(.caption).foregroundStyle(.orange)
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                    Button("Add another time") { model.settings.scheduleWindows.append(ScheduleWindow()) }
-                }
+            }
+            Section("Planning Center") {
+                PlanningCenterSection(model: model)
             }
             Section("Translation") {
                 if model.languages.isEmpty {
@@ -537,9 +499,11 @@ struct PlanningCenterSection: View {
                     Text(model.settings.pcoServiceTypeName).tag(id)
                 }
             }
-            Stepper("Start \(model.settings.pcoLeadMinutes) min before the service", value: $model.settings.pcoLeadMinutes, in: 0...120, step: 5)
-            Stepper("Stop \(model.settings.pcoLengthMinutes) min after it starts", value: $model.settings.pcoLengthMinutes, in: 15...300, step: 5)
-            if model.settings.pcoServiceTypeID != nil {
+            if model.settings.scheduleOn && model.settings.pcoOn {
+                Stepper("Start \(model.settings.pcoLeadMinutes) min before the service", value: $model.settings.pcoLeadMinutes, in: 0...120, step: 5)
+                Stepper("Stop \(model.settings.pcoLengthMinutes) min after it starts", value: $model.settings.pcoLengthMinutes, in: 15...300, step: 5)
+            }
+            if model.settings.scheduleOn && model.settings.pcoOn && model.settings.pcoServiceTypeID != nil {
                 let upcoming = model.settings.pcoTimes.filter { Schedule.pcoWindow(model.settings, $0).upperBound > Date() }.prefix(4)
                 if upcoming.isEmpty {
                     Text(model.pcoBusy ? "Loading service times…" : "No upcoming service times for this service type.")

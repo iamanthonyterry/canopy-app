@@ -12,7 +12,7 @@ enum AppFeature: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .workflows:   return "Workflows"
+        case .workflows:   return "Automations"
         case .inventory:   return "Inventory"
         case .socialShare: return "Social Share"
         }
@@ -28,7 +28,7 @@ enum AppFeature: String, CaseIterable, Identifiable {
 
     var summary: String {
         switch self {
-        case .workflows:   return "Build and run offload, convert and export workflows."
+        case .workflows:   return "Build and run offload, convert and export automations."
         case .inventory:   return "Track devices, rooms, patches and the system map."
         case .socialShare: return "Share clips to social channels. Coming soon."
         }

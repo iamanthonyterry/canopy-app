@@ -30,12 +30,11 @@ struct AIModelSettingsView: View {
                     downloadRow
                 }
 
-                note("Used to build and edit workflows from plain language, find clips in long videos, and write post copy. Runs entirely on this Mac. If it can't answer, Canopy falls back to Apple's built-in model.")
+                note("Used to build and edit automations from plain language, find clips in long videos, and write post copy. Runs entirely on this Mac. If it can't answer, Canopy falls back to Apple's built-in model.")
             }
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
     }
 
     private var isDownloading: Bool {
@@ -47,7 +46,7 @@ struct AIModelSettingsView: View {
         switch models.downloadState {
         case .downloading(let fraction):
             VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: fraction).tint(Color.canopySage)
+                ProgressView(value: fraction).tint(Color.green)
                 HStack {
                     Text("Downloading… \(Int(fraction * 100))%")
                         .font(.canopyCaption).foregroundStyle(.secondary)
@@ -59,14 +58,14 @@ struct AIModelSettingsView: View {
         case .failed(let message):
             VStack(alignment: .leading, spacing: 6) {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.canopyCaption).foregroundStyle(Color.canopyRust)
+                    .font(.canopyCaption).foregroundStyle(Color.orange)
                 Button("Try Again") { models.download() }.controlSize(.small)
             }
         case .idle:
             if models.isDownloaded {
                 HStack {
                     Label("Ready — in use", systemImage: "checkmark.circle.fill")
-                        .font(.canopyCaption).foregroundStyle(Color.canopySage)
+                        .font(.canopyCaption).foregroundStyle(Color.green)
                     Spacer()
                     Button("Delete Download", role: .destructive) { models.deleteDownload() }
                         .controlSize(.small)

@@ -164,14 +164,14 @@ final class WorkflowEngine: ObservableObject {
             let title = resuming.nextStep?.kind.title ?? "finishing up"
             session.log("↻ Resuming interrupted run — continuing at step \(position) of \(total) (\(title))")
         } else {
-            session.log("▶ Workflow started: \(workflow.name)")
+            session.log("▶ Automation started: \(workflow.name)")
         }
         let checkpointTargets = targets.map(savedTarget(for:))
 
         guard !targets.isEmpty else {
             session.log(workflow.choosesFolderAtRun
-                ? "⚠️ This workflow has no HyperDeck or folder set — press Run and choose a folder"
-                : "⚠️ No HyperDeck or folder is available for this workflow")
+                ? "⚠️ This automation has no HyperDeck or folder set — press Run and choose a folder"
+                : "⚠️ No HyperDeck or folder is available for this automation")
             finishRun(workflow: workflow, session: session)
             return
         }
@@ -204,7 +204,7 @@ final class WorkflowEngine: ObservableObject {
 
         if let referencedFolderStepID,
            !workflow.steps.contains(where: { $0.id == referencedFolderStepID && $0.kind == .createFolder }) {
-            session.log("❌ The Sync step's destination points at a Create Folder step that no longer exists in this workflow")
+            session.log("❌ The Sync step's destination points at a Create Folder step that no longer exists in this automation")
             session.mountError = "Sync destination step missing"
             session.errors += 1
             finishRun(workflow: workflow, session: session)
@@ -331,7 +331,16 @@ final class WorkflowEngine: ObservableObject {
                 session.beginStep(step.id)
                 session.beginStep(convertStep.id)
 
-                contexts = await withTaskGroup(of: StepContext.self) { group in
+                // Live Transcription also runs once for the whole automation: it
+            // controls this Mac's live transcript, not any one device.
+            if case .liveTranscription(let command, let stopAfterMinutes) = step.action {
+                runLiveTranscription(command: command, stopAfterMinutes: stopAfterMinutes, session: session)
+                session.endStep(step.id)
+                stepIndex += 1
+                continue
+            }
+
+            contexts = await withTaskGroup(of: StepContext.self) { group in
                     for context in contexts {
                         let takesPart = self.applies(step, to: context.device)
                         group.addTask {
@@ -364,7 +373,7 @@ final class WorkflowEngine: ObservableObject {
                 guard shouldContinue else {
                     if !session.isCancelled {
                         session.isCancelled = true
-                        session.log("⏹ Workflow stopped — confirmation declined")
+                        session.log("⏹ Automation stopped — confirmation declined")
                     }
                     break
                 }
@@ -455,7 +464,7 @@ final class WorkflowEngine: ObservableObject {
 
         if !workflowWideNotifySteps.isEmpty && !session.isCancelled {
             var workflowContext = StepContext(
-                device: contexts.first?.device ?? .hyperDeck(HyperDeck(name: "Workflow", ipAddress: "", remotePath: "")),
+                device: contexts.first?.device ?? .hyperDeck(HyperDeck(name: "Automation", ipAddress: "", remotePath: "")),
                 destDir: URL(fileURLWithPath: "/dev/null"),
                 files: allProcessedFiles,
                 session: session
@@ -482,7 +491,7 @@ final class WorkflowEngine: ObservableObject {
     /// Stops just one run, leaving any other concurrent runs untouched.
     func stop(_ session: WorkflowRunSession) {
         session.isCancelled = true
-        session.log("⏹ Workflow stopped by user")
+        session.log("⏹ Automation stopped by user")
         // Release a paused confirmation prompt or a user pause, if either is
         // active, so the run doesn't hang forever waiting for a response
         // that will never come.
@@ -633,6 +642,8 @@ final class WorkflowEngine: ObservableObject {
         case .createFolder:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .triggerWorkflow:
+            break // handled once per run, before the per-deck fan-out — see `start`
+        case .liveTranscription:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sync(_, let verify, let deleteFromDevice):
             // Removing an original is only safe against a verified copy.
@@ -950,7 +961,7 @@ final class WorkflowEngine: ObservableObject {
 
             if diskFullDetected {
                 session.isCancelled = true
-                session.log("⏹ Workflow stopped — destination drive is full")
+                session.log("⏹ Automation stopped — destination drive is full")
                 NotificationService.sendDeviceAlert(
                     title: "Canopy: Destination Drive Full",
                     body: "Sync to \(deckName) was stopped because the destination drive ran out of space. Free up space and run it again."
@@ -1166,7 +1177,7 @@ final class WorkflowEngine: ObservableObject {
                                 results.append(.diskFull)
                                 if !session.isCancelled {
                                     session.isCancelled = true
-                                    session.log("⏹ Workflow stopped — destination drive is full")
+                                    session.log("⏹ Automation stopped — destination drive is full")
                                     NotificationService.sendDeviceAlert(
                                         title: "Canopy: Destination Drive Full",
                                         body: "Sync to \(deckName) was stopped because the destination drive ran out of space. Free up space and run it again."
@@ -1779,19 +1790,19 @@ final class WorkflowEngine: ObservableObject {
         session: WorkflowRunSession, triggerChain: Set<UUID>
     ) async {
         guard let workflowID, let target = appState.workflows.first(where: { $0.id == workflowID }) else {
-            session.log("  ❌ Trigger Workflow: no workflow selected")
+            session.log("  ❌ Trigger Automation: no automation selected")
             session.errors += 1
             return
         }
         guard !triggerChain.contains(workflowID) else {
-            session.log("  ❌ Trigger Workflow: skipped \"\(target.name)\" — it's already running upstream in this chain")
+            session.log("  ❌ Trigger Automation: skipped \"\(target.name)\" — it's already running upstream in this chain")
             session.errors += 1
             return
         }
         var folderTarget: WorkflowTargetDevice?
         if case .createdFolder(let stepID, let deviceID) = folder {
             guard let folderURL = createdFolders[stepID] else {
-                session.log("  ❌ Trigger Workflow: skipped \"\(target.name)\" — the folder it should run on hasn't been created yet in this run")
+                session.log("  ❌ Trigger Automation: skipped \"\(target.name)\" — the folder it should run on hasn't been created yet in this run")
                 session.errors += 1
                 return
             }
@@ -1802,7 +1813,7 @@ final class WorkflowEngine: ObservableObject {
             var runName = folderURL.lastPathComponent
             if let deviceID {
                 guard let deck = appState.hyperDecks.first(where: { $0.id == deviceID }) else {
-                    session.log("  ❌ Trigger Workflow: skipped \"\(target.name)\" — the device it should run on no longer exists")
+                    session.log("  ❌ Trigger Automation: skipped \"\(target.name)\" — the device it should run on no longer exists")
                     session.errors += 1
                     return
                 }
@@ -1814,13 +1825,13 @@ final class WorkflowEngine: ObservableObject {
             }
             let device = WorkflowTargetDevice.localFolder(LocalFolder(name: runName, path: url.path))
             guard appState.canRun(deviceNames: [device.name], resourceKeys: [device.resourceKey]) else {
-                session.log("  ⚠️ Trigger Workflow: \"\(target.name)\" can't start — \(runName) is already in use by another run")
+                session.log("  ⚠️ Trigger Automation: \"\(target.name)\" can't start — \(runName) is already in use by another run")
                 return
             }
             folderTarget = device
         } else {
             guard appState.canRun(target) else {
-                session.log("  ⚠️ Trigger Workflow: \"\(target.name)\" can't start — one of its devices is already busy")
+                session.log("  ⚠️ Trigger Automation: \"\(target.name)\" can't start — one of its devices is already busy")
                 return
             }
         }
@@ -1851,6 +1862,41 @@ final class WorkflowEngine: ObservableObject {
         } else {
             session.log("  🔗 Triggering \"\(target.name)\"...")
             Task { await self.start(target, targets: targets, triggerChain: nextChain) }
+        }
+    }
+
+    // MARK: - Live Transcription step
+
+    private func runLiveTranscription(command: LiveTranscriptionCommand, stopAfterMinutes: Int, session: WorkflowRunSession) {
+        guard let model = AppModel.current else {
+            session.log("  ❌ Live Transcription: the transcriber isn't running")
+            session.errors += 1
+            return
+        }
+        switch command {
+        case .start:
+            if model.running {
+                session.log("  🎙 Live Transcription: already transcribing")
+            } else {
+                model.start()
+                session.log(model.running ? "  🎙 Live Transcription started" : "  ⚠️ Live Transcription didn't start — sign in to the website in Settings first")
+            }
+            guard model.running, stopAfterMinutes > 0 else { return }
+            // Only stop the transcript this step started, not a later one someone began by hand.
+            let started = Date()
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(Double(stopAfterMinutes) * 60))
+                guard model.running, !Task.isCancelled else { return }
+                model.stop()
+                self.appState.log("🎙 Live Transcription stopped after \(WaitDurationFormatter.string(forMinutes: stopAfterMinutes)) (started \(started.formatted(date: .omitted, time: .shortened)))")
+            }
+        case .stop:
+            if model.running {
+                model.stop()
+                session.log("  🎙 Live Transcription stopped")
+            } else {
+                session.log("  🎙 Live Transcription: wasn't running")
+            }
         }
     }
 
@@ -1977,7 +2023,7 @@ final class WorkflowEngine: ObservableObject {
         session.finalizeSteps()
         let c = session.converted
         let e = session.errors
-        session.log("✅ Workflow finished — \(c) processed, \(e) errors")
+        session.log("✅ Automation finished — \(c) processed, \(e) errors")
 
         let run = WorkflowRun(
             workflowName:   workflow.name,

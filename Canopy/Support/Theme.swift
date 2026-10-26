@@ -80,11 +80,11 @@ struct CanopyCard: ViewModifier {
     func body(content: Content) -> some View {
         content
             .padding(padding)
-            .background(Color.canopyPaperElevated)
+            .background(Color(nsColor: .controlBackgroundColor))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color.canopyRule, lineWidth: 1)
+                    .strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
             )
     }
 }
@@ -130,9 +130,9 @@ struct CanopySecondaryButtonStyle: ButtonStyle {
             .font(.canopySans(13, weight: .medium))
             .padding(.horizontal, 16).padding(.vertical, 8)
             .foregroundStyle(Color.canopyInk)
-            .background(Color.canopyPaperElevated.opacity(configuration.isPressed ? 0.6 : 1))
+            .background(Color(nsColor: .controlBackgroundColor).opacity(configuration.isPressed ? 0.6 : 1))
             .clipShape(Capsule())
-            .overlay(Capsule().strokeBorder(Color.canopyRule, lineWidth: 1))
+            .overlay(Capsule().strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
     }
 }
 

@@ -25,7 +25,7 @@ struct SettingsRoot: View {
             Tab("Transcription", systemImage: "waveform", value: SettingsTab.transcription.rawValue) {
                 ScrollView { TranscriberSettingsView(model: model) }
             }
-            Tab("Workflows", systemImage: "flowchart", value: SettingsTab.workflows.rawValue) {
+            Tab("Automations", systemImage: "flowchart", value: SettingsTab.workflows.rawValue) {
                 WorkflowsPage()
             }
             Tab("Devices", systemImage: "externaldrive.connected.to.line.below", value: SettingsTab.devices.rawValue) {
@@ -42,7 +42,7 @@ struct SettingsRoot: View {
 
 /// The workflow list and builder, with the run history beside it.
 struct WorkflowsPage: View {
-    private enum Section: String, CaseIterable { case workflows = "Workflows", history = "History" }
+    private enum Section: String, CaseIterable { case workflows = "Automations", history = "History" }
     @State private var section = Section.workflows
 
     var body: some View {
@@ -56,7 +56,6 @@ struct WorkflowsPage: View {
             case .history: HistoryView()
             }
         }
-        .background(Color.canopyPaper)
     }
 }
 
@@ -76,6 +75,5 @@ struct MoreSettingsView: View {
             }
             .padding(.vertical)
         }
-        .background(Color.canopyPaper)
     }
 }

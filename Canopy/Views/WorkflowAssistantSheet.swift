@@ -26,19 +26,19 @@ struct WorkflowAssistantSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Label("Describe a Workflow", systemImage: "sparkles")
-                    .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                Label("Describe a Automation", systemImage: "sparkles")
+                    .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     if let unavailableReason {
                         Label(unavailableReason, systemImage: "exclamationmark.triangle.fill")
-                            .font(.canopyCallout).foregroundStyle(Color.canopyRust)
+                            .font(.canopyCallout).foregroundStyle(Color.orange)
                     }
 
                     TextEditor(text: $request)
@@ -48,7 +48,7 @@ struct WorkflowAssistantSheet: View {
                         .scrollContentBackground(.hidden)
                         .padding(6)
                         .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.6)))
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.canopyRule))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
                         .disabled(unavailableReason != nil)
 
                     if result == nil {
@@ -63,7 +63,7 @@ struct WorkflowAssistantSheet: View {
                     }
 
                     if let errorMessage {
-                        Text(errorMessage).font(.canopyCallout).foregroundStyle(Color.canopyRust)
+                        Text(errorMessage).font(.canopyCallout).foregroundStyle(Color.orange)
                     }
 
                     if let result { preview(result) }
@@ -71,11 +71,10 @@ struct WorkflowAssistantSheet: View {
                 .padding()
             }
 
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             footer
         }
         .frame(width: 500, height: 540)
-        .background(Color.canopyPaper)
         .onAppear { focused = true }
     }
 
@@ -101,13 +100,13 @@ struct WorkflowAssistantSheet: View {
             }
             ForEach(result.notes, id: \.self) { note in
                 Label(note, systemImage: "info.circle")
-                    .font(.canopyCaption).foregroundStyle(Color.canopyRust)
+                    .font(.canopyCaption).foregroundStyle(Color.orange)
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.white.opacity(0.6)))
-        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.canopyRule))
+        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
     }
 
     // MARK: Footer

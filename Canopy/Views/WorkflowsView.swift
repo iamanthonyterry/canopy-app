@@ -72,7 +72,6 @@ struct WorkflowsView: View {
                 workflowList
             }
         }
-        .background(Color.canopyPaper)
         .sheet(isPresented: $isDescribing, onDismiss: {
             if let draft = pendingDraft { builder = .draft(draft) }
             pendingDraft = nil
@@ -98,8 +97,8 @@ struct WorkflowsView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Workflows").font(.canopyTitle).foregroundStyle(Color.canopyInk)
-                Text("\(appState.workflows.count) workflow\(appState.workflows.count == 1 ? "" : "s")")
+                Text("Automations").font(.canopyTitle).foregroundStyle(Color.primary)
+                Text("\(appState.workflows.count) automation\(appState.workflows.count == 1 ? "" : "s")")
                     .font(.canopySubheadline).foregroundStyle(.secondary)
                 WorkflowSyncLine()
             }
@@ -120,20 +119,20 @@ struct WorkflowsView: View {
             } label: {
                 AdaptiveLabel(title: "Describe It", icon: "sparkles", iconOnly: iconOnly)
             }
-            .help("Describe a workflow in plain language")
+            .help("Describe an automation in plain language")
             Button {
                 builder = .new
             } label: {
-                AdaptiveLabel(title: "New Workflow", icon: "plus", iconOnly: iconOnly)
+                AdaptiveLabel(title: "New Automation", icon: "plus", iconOnly: iconOnly)
             }
             .buttonStyle(.canopyPrimary)
-            .help("New Workflow")
+            .help("New Automation")
         }
     }
 
     // MARK: - Hairline rule
     private var rule: some View {
-        Rectangle().fill(Color.canopyRule).frame(height: 1)
+        Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
     }
 
     // MARK: - Empty state
@@ -141,16 +140,16 @@ struct WorkflowsView: View {
     private var emptyState: some View {
         VStack(spacing: 14) {
             Spacer()
-            Image(systemName: "flowchart").font(.system(size: 48)).foregroundStyle(Color.canopySage)
-            Text("No Workflows Yet").font(.canopyTitle2).foregroundStyle(Color.canopyInk)
-            Text("Build a workflow from steps like Record, Sync, Convert, Rename, Format, and Cleanup — then run it manually or on a schedule.")
+            Image(systemName: "flowchart").font(.system(size: 48)).foregroundStyle(Color.green)
+            Text("No Automations Yet").font(.canopyTitle2).foregroundStyle(Color.primary)
+            Text("Build an automation from steps like Record, Sync, Convert, Rename, Format, and Cleanup — then run it manually or on a schedule.")
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 360)
             Button {
                 builder = .new
             } label: {
-                Label("Create a Workflow", systemImage: "plus")
+                Label("Create a Automation", systemImage: "plus")
             }
             .buttonStyle(.canopyPrimary)
             Spacer()
@@ -191,8 +190,8 @@ struct WorkflowsView: View {
                         .font(.canopySans(10, weight: .semibold))
                         .lineLimit(1)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Color.canopySage.opacity(0.18))
-                        .foregroundStyle(Color.canopySage)
+                        .background(Color.green.opacity(0.18))
+                        .foregroundStyle(Color.green)
                         .clipShape(Capsule())
                 }
             }
@@ -294,11 +293,11 @@ private struct WorkflowSyncLine: View {
             Button { UserDefaults.standard.set(SettingsTab.transcription.rawValue, forKey: SettingsTab.storageKey) } label: {
                 Label("Connect to a campus to share these with its other Macs", systemImage: "arrow.triangle.2.circlepath")
             }
-            .buttonStyle(.plain).font(.canopyCaption).foregroundStyle(Color.canopySage)
+            .buttonStyle(.plain).font(.canopyCaption).foregroundStyle(Color.green)
         } else if sync.isEnabled {
             Label(SyncStatus.text(sync), systemImage: sync.lastError == nil ? "checkmark.icloud" : "exclamationmark.icloud")
                 .font(.canopyCaption)
-                .foregroundStyle(sync.lastError == nil ? Color.secondary : Color.canopyRust)
+                .foregroundStyle(sync.lastError == nil ? Color.secondary : Color.orange)
         } else {
             Label("Sync is off", systemImage: "icloud.slash").font(.canopyCaption).foregroundStyle(.secondary)
         }
@@ -316,7 +315,7 @@ private struct WebProgressMenu: View {
             if connection.isConnected {
                 if !connection.campusName.isEmpty { Text("Connected to \(connection.campusName)") }
                 Toggle("Share progress on the website", isOn: $publisher.isEnabled)
-                Toggle("Share workflows with this campus's other Macs", isOn: $sync.isEnabled)
+                Toggle("Share automations with this campus's other Macs", isOn: $sync.isEnabled)
                 if sync.isEnabled { Text(SyncStatus.text(sync)) }
                 if let origin = connection.origin {
                     Link("Open workflow progress on the website", destination: origin.appendingPathComponent("workflows"))
@@ -358,11 +357,11 @@ private struct RunningWorkflowBanner: View {
                 Button(role: .destructive) { engine.stop(session) } label: {
                     Label("Stop", systemImage: "stop.fill")
                 }
-                .buttonStyle(.bordered).tint(Color.canopyRust).controlSize(.small)
+                .buttonStyle(.bordered).tint(Color.orange).controlSize(.small)
             }
 
             ProgressView(value: Double(session.completedStepCount), total: Double(max(session.stepRuns.count, 1)))
-                .tint(Color.canopySage)
+                .tint(Color.green)
 
             // Re-evaluated every second so elapsed times and Wait-step
             // progress keep moving even when no other state changes.
@@ -425,7 +424,7 @@ private struct StepRunRow: View {
                 marker.frame(width: 22, height: 22)
                 if !isLast {
                     Rectangle()
-                        .fill(run.status == .done ? Color.canopySage.opacity(0.5) : Color.canopyRule)
+                        .fill(run.status == .done ? Color.green.opacity(0.5) : Color(nsColor: .separatorColor))
                         .frame(width: 2)
                         .frame(maxHeight: .infinity)
                 }
@@ -438,16 +437,16 @@ private struct StepRunRow: View {
                         .foregroundStyle(run.step.kind.color)
                     Text("\(index). \(run.step.action.shortLabel)")
                         .font(.canopySubheadline.weight(isActive ? .semibold : .regular))
-                        .foregroundStyle(isDimmed ? .secondary : Color.canopyInk)
+                        .foregroundStyle(isDimmed ? .secondary : Color.primary)
                     Spacer()
                     Text(trailingText)
                         .font(.canopyCaption.monospacedDigit())
-                        .foregroundStyle(run.errors > 0 ? Color.canopyRust : .secondary)
+                        .foregroundStyle(run.errors > 0 ? Color.orange : .secondary)
                 }
 
                 if run.status == .running {
                     if let progress {
-                        ProgressView(value: progress).tint(Color.canopySage)
+                        ProgressView(value: progress).tint(Color.green)
                     } else {
                         ProgressView().progressViewStyle(.linear)
                     }
@@ -478,7 +477,7 @@ private struct StepRunRow: View {
                 .symbolEffect(.pulse, isActive: !isPaused)
         case .done:
             Image(systemName: run.errors > 0 ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
-                .foregroundStyle(run.errors > 0 ? Color.canopyRust : Color.canopySage)
+                .foregroundStyle(run.errors > 0 ? Color.orange : Color.green)
         case .skipped:
             Image(systemName: "arrow.uturn.right.circle").foregroundStyle(.tertiary)
         case .cancelled:

@@ -46,12 +46,12 @@ struct TaskRow: View {
                 progressBar(label: "Download", value: 1.0, color: .accentColor.opacity(0.4))
                 progressBar(label: "Proxy",  value: task.convertProgress, color: .orange)
             case .done:
-                ProgressView(value: 1.0).tint(.canopySage)
+                ProgressView(value: 1.0).tint(.green)
             case .error:
                 if let msg = task.errorMessage {
                     HStack(spacing: 4) {
-                        Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.canopyRust).font(.canopyCaption2)
-                        Text(msg).font(.canopyCaption2).foregroundStyle(Color.canopyRust)
+                        Image(systemName: "exclamationmark.circle.fill").foregroundStyle(Color.orange).font(.canopyCaption2)
+                        Text(msg).font(.canopyCaption2).foregroundStyle(Color.orange)
                     }
                 }
             default:
@@ -108,8 +108,8 @@ struct TaskRow: View {
     private var verificationColor: Color {
         switch task.verification {
         case .none, .verifying: return .secondary
-        case .verified:         return .canopySage
-        case .mismatch, .failed: return .canopyRust
+        case .verified:         return .green
+        case .mismatch, .failed: return .orange
         }
     }
 
@@ -136,8 +136,8 @@ struct TaskRow: View {
         case .queued:      return .secondary
         case .downloading: return .accentColor
         case .converting:  return .orange
-        case .done:        return .canopySage
-        case .error:       return .canopyRust
+        case .done:        return .green
+        case .error:       return .orange
         }
     }
 }

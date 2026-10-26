@@ -22,7 +22,7 @@ struct WorkflowConfirmationBanner: View {
                     }
                 }
             }
-            .background(Color.canopyRule)
+            .background(Color(nsColor: .separatorColor))
         }
     }
 

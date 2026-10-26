@@ -64,7 +64,7 @@ enum FirstLaunch {
         guard !copies.isEmpty else { return }
         let alert = NSAlert()
         alert.messageText = "Move the old Canopy to the Trash?"
-        alert.informativeText = "This Canopy now includes everything the old one did, and your workflows and devices have been brought across. The old app is still installed at \(copies[0].deletingLastPathComponent().path). Keeping both can start the same workflows twice."
+        alert.informativeText = "This Canopy now includes everything the old one did, and your automations and devices have been brought across. The old app is still installed at \(copies[0].deletingLastPathComponent().path). Keeping both can start the same automations twice."
         alert.addButton(withTitle: "Move to Trash")
         alert.addButton(withTitle: "Keep It")
         NSApp.activate(ignoringOtherApps: true)
@@ -90,7 +90,7 @@ enum FirstLaunch {
 
         let alert = NSAlert()
         alert.messageText = copies.count == 1 ? "Another copy of Canopy is installed" : "Other copies of Canopy are installed"
-        alert.informativeText = "This Mac has Canopy at \(Bundle.main.bundleURL.path) (the one running now) and also at \(copies.map(\.path).joined(separator: ", ")). Both would listen to the microphone, run the same workflows and open at login. Quit and move the other to the Trash?"
+        alert.informativeText = "This Mac has Canopy at \(Bundle.main.bundleURL.path) (the one running now) and also at \(copies.map(\.path).joined(separator: ", ")). Both would listen to the microphone, run the same automations and open at login. Quit and move the other to the Trash?"
         alert.addButton(withTitle: "Quit and Move to Trash")
         alert.addButton(withTitle: "Keep Both")
         NSApp.activate(ignoringOtherApps: true)
@@ -125,7 +125,7 @@ enum FirstLaunch {
         defaults.set(true, forKey: askedLogin)
         let alert = NSAlert()
         alert.messageText = "Open Canopy when you log in?"
-        alert.informativeText = "Scheduled workflows and live captions only run while Canopy is open. You can change this later in Settings."
+        alert.informativeText = "Scheduled automations and live captions only run while Canopy is open. You can change this later in Settings."
         alert.addButton(withTitle: "Open at Login")
         alert.addButton(withTitle: "Not Now")
         NSApp.activate(ignoringOtherApps: true)

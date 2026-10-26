@@ -16,7 +16,7 @@ struct AlertSettingsView: View {
             VStack(alignment: .leading, spacing: 12) {
                 Toggle("Alert me if a recording device drops or runs low on storage", isOn: settings.isEnabled)
 
-                Text("Fires the instant a device that's actively recording or mid-workflow goes offline, loses its login, loses its drive, or fills up — not for a routine offline device sitting idle.")
+                Text("Fires the instant a device that's actively recording or mid-automation goes offline, loses its login, loses its drive, or fills up — not for a routine offline device sitting idle.")
                     .font(.canopyCaption2)
                     .foregroundStyle(.tertiary)
 
@@ -30,7 +30,6 @@ struct AlertSettingsView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
         .sheet(isPresented: $showingAddRecipient) {
             AddRecipientSheet(isPresented: $showingAddRecipient) { name, email in
                 appState.alertSettings.emailRecipients.append(NotificationRecipient(name: name, email: email))
@@ -85,7 +84,7 @@ struct AlertSettingsView: View {
                     Button {
                         appState.alertSettings.emailRecipients.removeAll { $0.id == recipient.id }
                     } label: {
-                        Image(systemName: "trash").foregroundStyle(Color.canopyRust)
+                        Image(systemName: "trash").foregroundStyle(Color.orange)
                     }
                     .buttonStyle(.borderless)
                 }

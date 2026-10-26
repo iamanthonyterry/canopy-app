@@ -74,8 +74,12 @@ final class AppModel: ObservableObject {
     let updates = UpdateManager()
     private var renameWatcher: AnyCancellable?
 
+    /// The running app's model, for automations that start and stop the live transcript.
+    nonisolated(unsafe) static weak var current: AppModel?
+
     init() {
         (settings, token) = FileTest.isSafeMode ? (Settings(), "") : SettingsStore.load()
+        Self.current = self
         refreshDevices()
         loadLanguages()
         updates.model = self
@@ -309,6 +313,12 @@ final class AppModel: ObservableObject {
             settings.pcoTerms = []
             saveSettings()
         }
+    }
+
+    /// Upcoming and just-past service times for a service type, for automations that start with a service.
+    func pcoServiceTimes(typeID: String) async -> [Date] {
+        guard pcoSignedIn else { return [] }
+        do { return try await pco.serviceTimes(typeID: typeID) } catch { handlePCO(error); return [] }
     }
 
     func loadPCOTypes() async {

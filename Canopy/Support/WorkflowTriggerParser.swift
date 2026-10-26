@@ -75,12 +75,14 @@ struct TriggerContext {
             return "\(when) at \(trigger.displayTime)"
         case .oneTime:
             return "once on \(trigger.displayOneTimeDate)"
+        case .planningCenter:
+            return trigger.displaySummary.prefix(1).lowercased() + trigger.displaySummary.dropFirst()
         case .recordingStopped:
             return "when \(deck()) stops recording"
         case .deviceOnline:
             return "when \(deck()) comes online"
         case .workflowFinished:
-            let name = workflows.first { $0.id == trigger.sourceWorkflowID }?.name ?? "a workflow"
+            let name = workflows.first { $0.id == trigger.sourceWorkflowID }?.name ?? "an automation"
             let condition: String
             switch trigger.finishCondition {
             case .any:           condition = ""
@@ -447,13 +449,13 @@ enum WorkflowTriggerParser {
 
         for workflow in context.workflows.sorted(by: { $0.name.count > $1.name.count }) {
             let name = NSRegularExpression.escapedPattern(for: workflow.name.lowercased())
-            let pattern = #"\b(?:after|when|once|whenever|as\s+soon\s+as|every\s+time)\s+(?:the\s+|my\s+)?["“']?\#(name)["”']?(?:\s+workflow)?\s+\#(verbs)\b"#
+            let pattern = #"\b(?:after|when|once|whenever|as\s+soon\s+as|every\s+time)\s+(?:the\s+|my\s+)?["“']?\#(name)["”']?(?:\s+(?:workflow|automation))?\s+\#(verbs)\b"#
             let spans = ranges(of: pattern, in: text)
             guard !spans.isEmpty else { continue }
             found = true
             blanked += spans
             guard !context.ineligibleWorkflowIDs.contains(workflow.id) else {
-                intent.notes.append("\(workflow.name) can't start this workflow — that would make them trigger each other, so I left it out.")
+                intent.notes.append("\(workflow.name) can't start this automation — that would make them trigger each other, so I left it out.")
                 continue
             }
             var trigger = ScheduleSettings()
@@ -468,7 +470,7 @@ enum WorkflowTriggerParser {
 
         if !found {
             // "after the workflow finishes" with no name we recognise.
-            let generic = #"\b(?:after|when|once)\s+(?:the\s+|my\s+|another\s+|a\s+)(?:other\s+|previous\s+|first\s+)?workflow\s+\#(verbs)\b"#
+            let generic = #"\b(?:after|when|once)\s+(?:the\s+|my\s+|another\s+|a\s+)(?:other\s+|previous\s+|first\s+)?(?:workflow|automation)\s+\#(verbs)\b"#
             let spans = ranges(of: generic, in: text)
             if !spans.isEmpty {
                 blanked += spans
@@ -476,7 +478,7 @@ enum WorkflowTriggerParser {
             }
         }
         if unmatched {
-            intent.notes.append("Couldn't tell which workflow should start this one — add it under Starts when.")
+            intent.notes.append("Couldn't tell which automation should start this one — add it under Starts when.")
         }
     }
 

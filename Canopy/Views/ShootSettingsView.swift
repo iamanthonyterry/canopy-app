@@ -40,6 +40,5 @@ struct ShootSettingsView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
     }
 }

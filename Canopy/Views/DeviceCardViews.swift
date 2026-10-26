@@ -8,11 +8,11 @@ struct StatusBadge: View {
 
     var body: some View {
         let color: Color = switch status {
-            case .online: .canopySage
-            case .offline: .canopyRust
+            case .online: .green
+            case .offline: .orange
             case .unauthorized: .orange
             case .pathNotFound: .orange
-            case .noMedia: .canopyRust
+            case .noMedia: .orange
             case .syncing: .accentColor
             case .transcoding: .orange
             case .unknown: .gray
@@ -58,7 +58,7 @@ struct CloudStoreContentPane: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(store.name).font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                Text(store.name).font(.canopyTitle2).foregroundStyle(Color.primary)
                     .lineLimit(1).truncationMode(.tail)
                 Text(store.ipAddress).font(.canopyCaption).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
@@ -91,7 +91,7 @@ struct CloudStoreContentPane: View {
                     .disabled(workflow.steps.isEmpty)
                 }
             } label: {
-                Label("Run Workflow", systemImage: "flowchart")
+                Label("Run Automation", systemImage: "flowchart")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -119,7 +119,7 @@ struct LocalFolderContentPane: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(folder.name).font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                Text(folder.name).font(.canopyTitle2).foregroundStyle(Color.primary)
                     .lineLimit(1).truncationMode(.tail)
                 Text(folder.path).font(.canopyCaption).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
@@ -127,7 +127,7 @@ struct LocalFolderContentPane: View {
             Spacer()
             Label(folder.exists ? "Available" : "Not Found", systemImage: folder.exists ? "checkmark.circle.fill" : "xmark.circle.fill")
                 .font(.canopyCaption).bold()
-                .foregroundStyle(folder.exists ? Color.canopySage : Color.canopyRust)
+                .foregroundStyle(folder.exists ? Color.green : Color.orange)
                 .lineLimit(1).fixedSize()
             if appState.isAdmin {
                 runWorkflowMenu
@@ -147,7 +147,7 @@ struct LocalFolderContentPane: View {
                     .disabled(workflow.steps.isEmpty)
                 }
             } label: {
-                Label("Run Workflow", systemImage: "flowchart")
+                Label("Run Automation", systemImage: "flowchart")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()

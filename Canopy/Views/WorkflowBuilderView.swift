@@ -78,7 +78,7 @@ struct WorkflowBuilderView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             GeometryReader { geo in
                 // Shrink the block palette on narrow windows so the canvas
                 // keeps room for steps.
@@ -86,12 +86,11 @@ struct WorkflowBuilderView: View {
                 HStack(spacing: 0) {
                     palette
                         .frame(width: paletteWidth)
-                    Rectangle().fill(Color.canopyRule).frame(width: 1)
+                    Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1)
                     workspace
                 }
             }
         }
-        .background(Color.canopyPaper)
         .sheet(item: $editingStep) { step in
             if let index = steps.firstIndex(where: { $0.id == step.id }) {
                 WorkflowStepConfigSheet(
@@ -121,7 +120,7 @@ struct WorkflowBuilderView: View {
             Button("Discard Changes", role: .destructive) { onClose() }
             Button("Keep Editing", role: .cancel) {}
         } message: {
-            Text("This workflow has unsaved changes.")
+            Text("This automation has unsaved changes.")
         }
     }
 
@@ -132,18 +131,18 @@ struct WorkflowBuilderView: View {
             Button {
                 if isDirty { confirmingDiscard = true } else { onClose() }
             } label: {
-                Label("All Workflows", systemImage: "chevron.left")
+                Label("All Automations", systemImage: "chevron.left")
                     .lineLimit(1)
             }
             .keyboardShortcut(.cancelAction)
             .fixedSize()
 
-            Rectangle().fill(Color.canopyRule).frame(width: 1, height: 22)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1, height: 22)
 
-            TextField("Workflow Name", text: $name)
+            TextField("Automation Name", text: $name)
                 .textFieldStyle(.plain)
                 .font(.canopyTitle)
-                .foregroundStyle(Color.canopyInk)
+                .foregroundStyle(Color.primary)
 
             Spacer()
 
@@ -152,12 +151,12 @@ struct WorkflowBuilderView: View {
                     .lineLimit(1)
                     .layoutPriority(-1)
             }
-            Button(existingWorkflow == nil ? "Create Workflow" : "Save Workflow") { save() }
+            Button(existingWorkflow == nil ? "Create Automation" : "Save Automation") { save() }
                 .buttonStyle(.canopyPrimary)
                 .fixedSize()
                 .disabled(!canSave)
                 .keyboardShortcut("s", modifiers: .command)
-                .help(canSave ? "" : "Give the workflow a name and at least one step")
+                .help(canSave ? "" : "Give the automation a name and at least one step")
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
@@ -200,13 +199,13 @@ struct WorkflowBuilderView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 6) {
                     if !paletteKinds.isEmpty {
-                        paletteHeader("Steps", hint: "Drag into the workflow, or click to add")
+                        paletteHeader("Steps", hint: "Drag into the automation, or click to add")
                         ForEach(paletteKinds) { kind in
                             stepTile(kind)
                         }
                     }
                     if !paletteModes.isEmpty {
-                        paletteHeader("Triggers", hint: "What starts the workflow")
+                        paletteHeader("Triggers", hint: "What starts the automation")
                             .padding(.top, 10)
                         ForEach(paletteModes) { mode in
                             triggerTile(mode)
@@ -222,7 +221,6 @@ struct WorkflowBuilderView: View {
                 .padding(.bottom, 16)
             }
         }
-        .background(Color.canopyPaper)
     }
 
     private func paletteHeader(_ title: String, hint: String) -> some View {
@@ -248,7 +246,7 @@ struct WorkflowBuilderView: View {
     private func triggerTile(_ mode: ScheduleMode) -> some View {
         PaletteTile(
             icon: mode.icon,
-            color: Color.canopySage,
+            color: Color.green,
             title: mode.title,
             subtitle: ScheduleMode.eventModes.contains(mode) ? "When something happens" : "On a schedule",
             dimmed: false
@@ -290,7 +288,7 @@ struct WorkflowBuilderView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let assistantError {
                         Label(assistantError, systemImage: "exclamationmark.triangle.fill")
-                            .font(.canopyCaption).foregroundStyle(Color.canopyRust)
+                            .font(.canopyCaption).foregroundStyle(Color.orange)
                     }
                     ForEach(assistantNotes, id: \.self) { note in
                         Label(note, systemImage: "checkmark.circle")
@@ -304,10 +302,10 @@ struct WorkflowBuilderView: View {
             }
 
             HStack(spacing: 8) {
-                Image(systemName: "sparkles").foregroundStyle(Color.canopySage)
+                Image(systemName: "sparkles").foregroundStyle(Color.green)
                 TextField(
                     assistantIsBuilding
-                        ? "Describe the workflow you want…"
+                        ? "Describe the automation you want…"
                         : "Describe a change — \"add an email at the end\", \"remove the wait\", \"run every night at 2am\"",
                     text: $assistantRequest
                 )
@@ -324,7 +322,7 @@ struct WorkflowBuilderView: View {
             }
             .padding(10)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(nsColor: .controlBackgroundColor)))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.canopyRule, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
 
             if let assistantUnavailableReason {
                 Text(assistantUnavailableReason).font(.canopyCaption2).foregroundStyle(.secondary)
@@ -333,7 +331,7 @@ struct WorkflowBuilderView: View {
         .padding(.horizontal, 24).padding(.vertical, 12)
         .frame(maxWidth: .infinity)
         .background(Color.canopyPaper.opacity(0.96))
-        .overlay(alignment: .top) { Rectangle().fill(Color.canopyRule).frame(height: 1) }
+        .overlay(alignment: .top) { Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1) }
     }
 
     private func runAssistant() {
@@ -388,7 +386,7 @@ struct WorkflowBuilderView: View {
     }
 
     private var connector: some View {
-        Rectangle().fill(Color.canopyRule).frame(width: 2, height: 22)
+        Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 2, height: 22)
     }
 
     private func sectionLabel(_ title: String, systemImage: String) -> some View {
@@ -429,7 +427,7 @@ struct WorkflowBuilderView: View {
                          : "Drop another trigger here")
                         .font(.canopyCaption)
                 }
-                .foregroundStyle(triggerZoneTargeted ? Color.canopySage : .secondary)
+                .foregroundStyle(triggerZoneTargeted ? Color.green : .secondary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, triggers.isEmpty ? 18 : 10)
                 .background(DropOutline(isTargeted: triggerZoneTargeted))
@@ -447,13 +445,15 @@ struct WorkflowBuilderView: View {
             return "Daily · \(trigger.displayTime)"
         case .oneTime:
             return "One Time · \(trigger.displayOneTimeDate)"
+        case .planningCenter:
+            return trigger.pcoServiceTypeID == nil ? "Planning Center service time" : "Planning Center · \(trigger.pcoServiceTypeName)"
         case .recordingStopped:
             return "When \(deckName(trigger.deviceID)) stops recording"
         case .deviceOnline:
             return "When \(deckName(trigger.deviceID)) comes online"
         case .workflowFinished:
             let name = appState.workflows.first { $0.id == trigger.sourceWorkflowID }?.name
-            return name.map { "When \"\($0)\" finishes" } ?? "When a workflow finishes"
+            return name.map { "When \"\($0)\" finishes" } ?? "When an automation finishes"
         case .folderChanged:
             let name = appState.localFolders.first { $0.id == trigger.deviceID }?.name
             return name.map { "When new clips arrive in \($0)" } ?? "When new clips arrive in a folder"
@@ -472,6 +472,8 @@ struct WorkflowBuilderView: View {
             return trigger.displayWeekdays
         case .oneTime:
             return "Runs once, then turns off"
+        case .planningCenter:
+            return trigger.pcoServiceTypeID == nil ? "Choose a service type" : trigger.displaySummary
         case .recordingStopped, .deviceOnline:
             return "Runs on that deck · at most every \(trigger.cooldownMinutes) min"
         case .workflowFinished:
@@ -497,7 +499,7 @@ struct WorkflowBuilderView: View {
     private func triggerNode(_ trigger: ScheduleSettings, index: Int) -> some View {
         HStack(spacing: 12) {
             NodeIcon(systemImage: trigger.mode.icon,
-                     color: trigger.isEnabled ? Color.canopySage : .secondary)
+                     color: trigger.isEnabled ? Color.green : .secondary)
             VStack(alignment: .leading, spacing: 2) {
                 Text(triggerTitle(trigger)).font(.canopyBody)
                 Text(triggerDetail(trigger)).font(.canopyCaption).foregroundStyle(.secondary)
@@ -514,7 +516,7 @@ struct WorkflowBuilderView: View {
             Button {
                 withAnimation(.snappy) { _ = triggers.remove(at: index) }
             } label: {
-                Image(systemName: "trash").foregroundStyle(Color.canopyRust)
+                Image(systemName: "trash").foregroundStyle(Color.orange)
             }
             .buttonStyle(.borderless).help("Remove trigger")
         }
@@ -596,7 +598,7 @@ struct WorkflowBuilderView: View {
                         .font(.canopyCaption).foregroundStyle(.secondary)
                     if !triggers.isEmpty {
                         Label("Triggers can't start it — there's no folder to run on until you pick one.", systemImage: "exclamationmark.triangle")
-                            .font(.canopyCaption).foregroundStyle(Color.canopyRust)
+                            .font(.canopyCaption).foregroundStyle(Color.orange)
                     }
                 }
             }
@@ -637,9 +639,9 @@ struct WorkflowBuilderView: View {
             if steps.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "square.stack.3d.down.right")
-                        .font(.system(size: 28)).foregroundStyle(Color.canopySage)
-                    Text("Drag steps here to build your workflow")
-                        .font(.canopyHeadline).foregroundStyle(Color.canopyInk)
+                        .font(.system(size: 28)).foregroundStyle(Color.green)
+                    Text("Drag steps here to build your automation")
+                        .font(.canopyHeadline).foregroundStyle(Color.primary)
                     Text("Pick from the list on the left. Steps run top to bottom, and files flow from one step to the next.")
                         .font(.canopyCaption).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
@@ -701,7 +703,7 @@ struct WorkflowBuilderView: View {
             Button {
                 withAnimation(.snappy) { _ = steps.remove(at: index) }
             } label: {
-                Image(systemName: "trash").foregroundStyle(Color.canopyRust)
+                Image(systemName: "trash").foregroundStyle(Color.orange)
             }
             .buttonStyle(.borderless).help("Remove step")
         }
@@ -844,7 +846,7 @@ private struct PaletteTile: View {
                 .fill(hovering && !dimmed ? Color.primary.opacity(0.07) : Color.primary.opacity(0.03))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8).strokeBorder(Color.canopyRule, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1)
         )
         .opacity(dimmed ? 0.5 : 1)
         .contentShape(Rectangle())
@@ -871,7 +873,7 @@ private struct NodeBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 10)
             .fill(Color(nsColor: .controlBackgroundColor))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.canopyRule, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color(nsColor: .separatorColor), lineWidth: 1))
     }
 }
 
@@ -881,12 +883,12 @@ private struct DropOutline: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 10)
             .strokeBorder(
-                isTargeted ? Color.canopySage : Color.canopyRule,
+                isTargeted ? Color.green : Color(nsColor: .separatorColor),
                 style: StrokeStyle(lineWidth: isTargeted ? 2 : 1.5, dash: [6, 4])
             )
             .background(
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(isTargeted ? Color.canopySage.opacity(0.10) : .clear)
+                    .fill(isTargeted ? Color.green.opacity(0.10) : .clear)
             )
     }
 }
@@ -900,16 +902,16 @@ private struct StepDropGap: View {
 
     var body: some View {
         ZStack {
-            Rectangle().fill(Color.canopyRule).frame(width: 2)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 2)
                 .frame(maxHeight: .infinity)
                 .opacity(isLast ? 0 : 1)
             if isTargeted {
-                Capsule().fill(Color.canopySage).frame(height: 4)
+                Capsule().fill(Color.green).frame(height: 4)
                     .overlay(alignment: .center) {
                         Text("Drop here")
                             .font(.canopyCaption2.weight(.semibold))
                             .padding(.horizontal, 8).padding(.vertical, 2)
-                            .background(Capsule().fill(Color.canopySage))
+                            .background(Capsule().fill(Color.green))
                             .foregroundStyle(.white)
                     }
             }
@@ -952,7 +954,7 @@ private struct DotGrid: View {
                 }
                 y += spacing
             }
-            context.fill(path, with: .color(Color.canopyRule))
+            context.fill(path, with: .color(Color(nsColor: .separatorColor)))
         }
         .allowsHitTesting(false)
     }
@@ -978,14 +980,14 @@ struct ScheduleTriggerConfigSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Label("\(trigger.mode.title) Trigger", systemImage: trigger.mode.icon)
-                .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Done") { dismiss() }
                     .buttonStyle(.canopyPrimary)
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             Form {
                 Toggle("Enabled", isOn: $trigger.isEnabled)
@@ -1026,9 +1028,12 @@ struct ScheduleTriggerConfigSheet: View {
                     Text("Runs once at the selected date and time, then turns off.")
                         .font(.canopyCaption).foregroundStyle(.secondary)
 
+                case .planningCenter:
+                    planningCenterFields
+
                 case .recordingStopped:
                     deckPicker
-                    note("Runs the workflow on the deck that just stopped, so a take can be offloaded the moment it ends. Decks that drop off the network don't count.")
+                    note("Runs the automation on the deck that just stopped, so a take can be offloaded the moment it ends. Decks that drop off the network don't count.")
                     cooldownStepper
 
                 case .deviceOnline:
@@ -1037,8 +1042,8 @@ struct ScheduleTriggerConfigSheet: View {
                     cooldownStepper
 
                 case .workflowFinished:
-                    Picker("Workflow", selection: $trigger.sourceWorkflowID) {
-                        Text("Choose a workflow").tag(UUID?.none)
+                    Picker("Automation", selection: $trigger.sourceWorkflowID) {
+                        Text("Choose an automation").tag(UUID?.none)
                         ForEach(sourceWorkflows) { workflow in
                             Text(workflow.name).tag(Optional(workflow.id))
                         }
@@ -1046,7 +1051,7 @@ struct ScheduleTriggerConfigSheet: View {
                     Picker("Run when", selection: $trigger.finishCondition) {
                         ForEach(WorkflowFinishCondition.allCases) { Text($0.title).tag($0) }
                     }
-                    note("Runs after the chosen workflow finishes. Runs you stop by hand don't count.")
+                    note("Runs after the chosen automation finishes. Runs you stop by hand don't count.")
                     cooldownStepper
 
                 case .folderChanged:
@@ -1059,7 +1064,7 @@ struct ScheduleTriggerConfigSheet: View {
                     if appState.localFolders.isEmpty {
                         note("Add a Local Folder in Devices first.")
                     } else {
-                        note("Checked every 30 seconds. Clips already in the folder are ignored; the workflow runs on the folder once new clips have finished copying in.")
+                        note("Checked every 30 seconds. Clips already in the folder are ignored; the automation runs on the folder once new clips have finished copying in.")
                     }
                     cooldownStepper
 
@@ -1098,9 +1103,17 @@ struct ScheduleTriggerConfigSheet: View {
             .padding(.top, 4)
         }
         .frame(width: 420)
-        .background(Color.canopyPaper)
         .onDisappear(perform: stopLearning)
         .onChange(of: trigger.mode) { stopLearning() }
+    }
+
+    @ViewBuilder private var planningCenterFields: some View {
+        if let model = AppModel.current {
+            PlanningCenterTriggerFields(model: model, trigger: $trigger)
+        } else {
+            note("Planning Center isn't available right now.")
+        }
+        note("Runs once for each service time of the chosen service type, ahead of it by the number of minutes set here. Pair it with a Live Transcription step to transcribe each service.")
     }
 
     private var deckPicker: some View {
@@ -1190,5 +1203,43 @@ struct ScheduleTriggerConfigSheet: View {
                 .font(.canopyCaption2).foregroundStyle(.tertiary)
         }
         .padding(.top, 2)
+    }
+}
+
+/// The Planning Center trigger's settings: which service type, and how long before each service it runs.
+/// Signing in is shared with the Transcription tab.
+private struct PlanningCenterTriggerFields: View {
+    @ObservedObject var model: AppModel
+    @Binding var trigger: ScheduleSettings
+
+    var body: some View {
+        if !model.pcoSignedIn {
+            HStack {
+                Button(model.pcoBusy ? "Waiting for the browser…" : "Sign in to Planning Center") { model.pcoSignIn() }
+                    .disabled(model.pcoBusy || !PCOConfig.isConfigured)
+                if model.pcoBusy { ProgressView().controlSize(.small) }
+            }
+            Text(PCOConfig.isConfigured ? "Opens Planning Center in your browser. Only service types and times are read."
+                 : "This build has no Planning Center credentials (see Support/pco.env.example).")
+                .font(.canopyCaption).foregroundStyle(.secondary)
+        } else {
+            Picker("Service type", selection: Binding(
+                get: { trigger.pcoServiceTypeID ?? "" },
+                set: { id in
+                    trigger.pcoServiceTypeID = id.isEmpty ? nil : id
+                    trigger.pcoServiceTypeName = model.pcoTypes.first { $0.id == id }?.name ?? ""
+                })) {
+                Text("Choose…").tag("")
+                ForEach(model.pcoTypes) { Text($0.name).tag($0.id) }
+                // keeps the saved choice visible before the list loads (or while offline)
+                if let id = trigger.pcoServiceTypeID, !model.pcoTypes.contains(where: { $0.id == id }) {
+                    Text(trigger.pcoServiceTypeName).tag(id)
+                }
+            }
+            Stepper(value: $trigger.pcoLeadMinutes, in: 0...180, step: 5) {
+                Text(trigger.pcoLeadMinutes == 0 ? "Run when the service starts" : "Run \(trigger.pcoLeadMinutes) min before the service")
+            }
+            if let e = model.pcoError { Text(e).font(.canopyCaption).foregroundStyle(.orange) }
+        }
     }
 }

@@ -19,20 +19,19 @@ struct EmailNotificationsView: View {
                 if connection.isConnected {
                     Label("Ready — connected to your campus", systemImage: "checkmark.circle.fill")
                         .font(.canopyBody)
-                        .foregroundStyle(Color.canopySage)
+                        .foregroundStyle(Color.green)
                 } else {
                     Label("Connect this Mac to a campus (Settings → Transcription) to send email", systemImage: "exclamationmark.triangle.fill")
                         .font(.canopyBody)
                         .foregroundStyle(.orange)
                 }
 
-                Text("Add a Notification step to any workflow to send email with a custom header, message, and recipients. The site limits how much one campus can send in an hour.")
+                Text("Add a Notification step to any automation to send email with a custom header, message, and recipients. The site limits how much one campus can send in an hour.")
                     .font(.canopyCaption2)
                     .foregroundStyle(.tertiary)
             }
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
     }
 }

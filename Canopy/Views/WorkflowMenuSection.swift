@@ -22,9 +22,9 @@ struct WorkflowMenuSection: View {
             if let errored = appState.activeRuns.first(where: { $0.mountError != nil }) {
                 Label(errored.mountError ?? "Couldn't reach storage", systemImage: "exclamationmark.triangle.fill")
             } else if let last = appState.workflowRunHistory.first {
-                Text("Last workflow: \(last.workflowName) · \(last.finishedAt.formatted(.relative(presentation: .named)))")
+                Text("Last automation: \(last.workflowName) · \(last.finishedAt.formatted(.relative(presentation: .named)))")
             } else {
-                Text("No workflows have run yet")
+                Text("No automations have run yet")
             }
         } else {
             ForEach(inProgress) { session in
@@ -35,7 +35,7 @@ struct WorkflowMenuSection: View {
                 Button("Stop “\(session.workflow.name)”", systemImage: "stop.fill", role: .destructive) { engine.stop(session) }
             }
             if inProgress.count > 1 {
-                Button("Stop All Workflows", systemImage: "stop.fill", role: .destructive) { engine.stop() }
+                Button("Stop All Automations", systemImage: "stop.fill", role: .destructive) { engine.stop() }
             }
         }
 
@@ -55,7 +55,7 @@ struct WorkflowMenuSection: View {
             }
         }
 
-        Menu("Run Workflow") {
+        Menu("Run Automation") {
             ForEach(runnable) { workflow in
                 Button(workflow.name) { Task { await engine.runFromUI(workflow) } }
                     .disabled(!appState.canRun(workflow))
@@ -69,7 +69,7 @@ struct WorkflowMenuSection: View {
             }
         }
 
-        Button(appState.workflows.isEmpty ? "Create a Workflow…" : "Workflows…") {
+        Button(appState.workflows.isEmpty ? "Create a Automation…" : "Automations…") {
             SettingsTab.workflows.open(with: openWindow)
         }
     }

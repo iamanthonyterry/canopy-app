@@ -16,7 +16,7 @@ struct DataBackupView: View {
     var body: some View {
         GroupBox(label: Label("Backup", systemImage: "square.and.arrow.up.on.square")) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Export every workflow and device setting (HyperDecks, Cloud Stores, Local Folders) to a CSV file, or import one to restore or copy them to this Mac.")
+                Text("Export every automation and device setting (HyperDecks, Cloud Stores, Local Folders) to a CSV file, or import one to restore or copy them to this Mac.")
                     .font(.canopyCaption2)
                     .foregroundStyle(.tertiary)
 
@@ -39,7 +39,7 @@ struct DataBackupView: View {
                 if let resultMessage {
                     Text(resultMessage)
                         .font(.canopyCaption)
-                        .foregroundStyle(isError ? Color.canopyRust : .secondary)
+                        .foregroundStyle(isError ? Color.orange : .secondary)
                 }
             }
             .padding(.top, 8)
@@ -104,7 +104,7 @@ struct DataBackupView: View {
         do {
             try csv.write(to: url, atomically: true, encoding: .utf8)
             isError = false
-            resultMessage = "Exported \(appState.hyperDecks.count + appState.cloudStores.count + appState.localFolders.count) device(s) and \(appState.workflows.count) workflow(s)."
+            resultMessage = "Exported \(appState.hyperDecks.count + appState.cloudStores.count + appState.localFolders.count) device(s) and \(appState.workflows.count) automation(s)."
         } catch {
             isError = true
             resultMessage = "Couldn't write file: \(error.localizedDescription)"
@@ -127,7 +127,7 @@ struct DataBackupView: View {
             let parsed = try BackupCSVService.importCSV(text)
             let summary = appState.importBackup(parsed)
             isError = false
-            resultMessage = "Imported \(summary.devices) device(s) and \(summary.workflows) workflow(s)."
+            resultMessage = "Imported \(summary.devices) device(s) and \(summary.workflows) automation(s)."
         } catch {
             isError = true
             resultMessage = "Import failed: \(error.localizedDescription)"

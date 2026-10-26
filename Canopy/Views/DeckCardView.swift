@@ -89,7 +89,7 @@ struct DeckContentPane: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
-                Text(deck.name).font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                Text(deck.name).font(.canopyTitle2).foregroundStyle(Color.primary)
                     .lineLimit(1).truncationMode(.tail)
                 Text(deck.ipAddress).font(.canopyCaption).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle)
@@ -120,7 +120,7 @@ struct DeckContentPane: View {
                     .disabled(workflow.steps.isEmpty)
                 }
             } label: {
-                Label("Run Workflow", systemImage: "flowchart")
+                Label("Run Automation", systemImage: "flowchart")
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -168,8 +168,8 @@ struct DeckContentPane: View {
         case .queued: .secondary
         case .downloading: .accentColor
         case .converting: .orange
-        case .done: .canopySage
-        case .error: .canopyRust
+        case .done: .green
+        case .error: .orange
         }
     }
 }
@@ -187,12 +187,12 @@ struct HyperDeckControls: View {
         HStack(spacing: 10) {
             if isRecording {
                 Circle()
-                    .fill(Color.canopyRust)
+                    .fill(Color.orange)
                     .frame(width: 8, height: 8)
                     .symbolEffect(.pulse)
                 Text("REC")
                     .font(.canopyCaption).bold()
-                    .foregroundStyle(Color.canopyRust)
+                    .foregroundStyle(Color.orange)
             }
 
             Button {
@@ -205,7 +205,7 @@ struct HyperDeckControls: View {
                     Label("Stop", systemImage: "stop.circle.fill")
                 } else {
                     Label("Record", systemImage: "record.circle")
-                        .foregroundStyle(Color.canopyRust)
+                        .foregroundStyle(Color.orange)
                 }
             }
             .buttonStyle(.bordered)

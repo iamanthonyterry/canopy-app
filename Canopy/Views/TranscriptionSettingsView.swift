@@ -37,7 +37,6 @@ struct TranscriptionSettingsView: View {
             .padding(.top, 8)
         }
         .padding(.horizontal)
-        .background(Color.canopyPaper)
         .onAppear { models.refresh() }
     }
 
@@ -50,7 +49,7 @@ struct TranscriptionSettingsView: View {
         switch models.downloadState {
         case .downloading(let fraction):
             VStack(alignment: .leading, spacing: 6) {
-                ProgressView(value: fraction).tint(Color.canopySage)
+                ProgressView(value: fraction).tint(Color.green)
                 HStack {
                     Text("Downloading… \(Int(fraction * 100))%")
                         .font(.canopyCaption).foregroundStyle(.secondary)
@@ -62,14 +61,14 @@ struct TranscriptionSettingsView: View {
         case .failed(let message):
             VStack(alignment: .leading, spacing: 6) {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
-                    .font(.canopyCaption).foregroundStyle(Color.canopyRust)
+                    .font(.canopyCaption).foregroundStyle(Color.orange)
                 Button("Try Again") { models.download() }.controlSize(.small)
             }
         case .idle:
             if models.isDownloaded {
                 HStack {
                     Label("Ready — in use", systemImage: "checkmark.circle.fill")
-                        .font(.canopyCaption).foregroundStyle(Color.canopySage)
+                        .font(.canopyCaption).foregroundStyle(Color.green)
                     Spacer()
                     Button("Delete Download", role: .destructive) { models.deleteDownload() }
                         .controlSize(.small)

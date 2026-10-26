@@ -34,7 +34,7 @@ struct CloudStoreEditSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text(existingStore == nil ? "Add \(kind.displayName)" : "Edit \(kind.displayName)")
-                    .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                    .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(existingStore == nil ? "Add" : "Save") { save() }
@@ -42,7 +42,7 @@ struct CloudStoreEditSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             Form {
                 Section("Device Info") {
@@ -88,13 +88,13 @@ struct CloudStoreEditSheet: View {
                         if let result = mountResult {
                             Text(result)
                                 .font(.canopySubheadline)
-                                .foregroundStyle(result.hasPrefix("✅") ? .canopySage : .canopyRust)
+                                .foregroundStyle(result.hasPrefix("✅") ? .green : .orange)
                         } else if pingStatus != .unknown {
                             Label(
                                 pingStatus == .online ? "Reachable" : "No Response",
                                 systemImage: pingStatus == .online ? "checkmark.circle.fill" : "xmark.circle.fill"
                             )
-                            .foregroundStyle(pingStatus == .online ? .canopySage : .canopyRust)
+                            .foregroundStyle(pingStatus == .online ? .green : .orange)
                             .font(.canopySubheadline)
                         }
                     }
@@ -115,7 +115,6 @@ struct CloudStoreEditSheet: View {
             .formStyle(.grouped)
         }
         .frame(width: 440)
-        .background(Color.canopyPaper)
         .sheet(isPresented: $showVolumePicker) {
             CloudStoreVolumePickerSheet(ipAddress: ipAddress, username: username, password: password) { share in
                 volumeName = share

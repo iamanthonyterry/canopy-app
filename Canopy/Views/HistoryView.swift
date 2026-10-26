@@ -12,7 +12,7 @@ struct HistoryView: View {
             VStack(spacing: 0) {
                 HStack {
                     Text("Run History")
-                        .font(.canopyTitle).foregroundStyle(Color.canopyInk)
+                        .font(.canopyTitle).foregroundStyle(Color.primary)
                     Spacer()
                     if !appState.workflowRunHistory.isEmpty {
                         Button(role: .destructive) {
@@ -22,19 +22,19 @@ struct HistoryView: View {
                             Label("Clear", systemImage: "trash")
                         }
                         .buttonStyle(.borderless)
-                        .foregroundStyle(Color.canopyRust)
+                        .foregroundStyle(Color.orange)
                     }
                 }
                 .padding()
-                Rectangle().fill(Color.canopyRule).frame(height: 1)
+                Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
                 if appState.workflowRunHistory.isEmpty {
                     VStack(spacing: 12) {
                         Spacer()
                         Image(systemName: "clock.arrow.circlepath")
-                            .font(.system(size: 40)).foregroundStyle(Color.canopySage)
-                        Text("No Runs Yet").font(.canopyTitle2).foregroundStyle(Color.canopyInk)
-                        Text("Completed workflow runs appear here.")
+                            .font(.system(size: 40)).foregroundStyle(Color.green)
+                        Text("No Runs Yet").font(.canopyTitle2).foregroundStyle(Color.primary)
+                        Text("Completed automation runs appear here.")
                             .foregroundStyle(.secondary)
                         Spacer()
                     }
@@ -64,7 +64,6 @@ struct HistoryView: View {
                 .frame(minWidth: 280, maxWidth: .infinity)
             }
         }
-        .background(Color.canopyPaper)
     }
 }
 
@@ -76,7 +75,7 @@ struct RunRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: run.errors == 0 ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(run.errors == 0 ? Color.canopySage : .orange)
+                    .foregroundStyle(run.errors == 0 ? Color.green : .orange)
                 Text(run.workflowName)
                     .font(.canopyHeadline)
                     .lineLimit(1)
@@ -86,8 +85,8 @@ struct RunRow: View {
                     .lineLimit(1).fixedSize()
             }
             HStack(spacing: 12) {
-                CanopyPill(label: "\(run.processed) processed", color: .canopySage)
-                if run.errors > 0 { CanopyPill(label: "\(run.errors) errors", color: .canopyRust) }
+                CanopyPill(label: "\(run.processed) processed", color: .green)
+                if run.errors > 0 { CanopyPill(label: "\(run.errors) errors", color: .orange) }
             }
             HStack(spacing: 4) {
                 Text(run.startedAt, style: .date)
@@ -111,7 +110,7 @@ struct RunDetailView: View {
             VStack(alignment: .leading, spacing: 20) {
 
                 HStack {
-                    Text(run.workflowName).font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                    Text(run.workflowName).font(.canopyTitle2).foregroundStyle(Color.primary)
                         .lineLimit(2)
                     Spacer(minLength: 8)
                     if isBuildingReport {
@@ -132,12 +131,12 @@ struct RunDetailView: View {
 
                 // Header stats
                 HStack(spacing: 16) {
-                    statCard(value: "\(run.processed)", label: "Processed", color: .canopySage)
-                    statCard(value: "\(run.errors)",    label: "Errors",    color: run.errors > 0 ? .canopyRust : .secondary)
+                    statCard(value: "\(run.processed)", label: "Processed", color: .green)
+                    statCard(value: "\(run.errors)",    label: "Errors",    color: run.errors > 0 ? .orange : .secondary)
                     statCard(value: run.durationFormatted, label: "Duration", color: .primary)
                 }
 
-                Rectangle().fill(Color.canopyRule).frame(height: 1)
+                Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
                 // Time info
                 Group {
@@ -146,7 +145,7 @@ struct RunDetailView: View {
                     labelRow("Decks",    run.decksProcessed.joined(separator: ", "))
                 }
 
-                Rectangle().fill(Color.canopyRule).frame(height: 1)
+                Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
                 // Log
                 DisclosureGroup(isExpanded: $showLog) {
@@ -214,7 +213,7 @@ struct RunDetailView: View {
 
         let header = """
         Canopy Run Log
-        Workflow: \(run.workflowName)
+        Automation: \(run.workflowName)
         Started:  \(run.startedAt.formatted(date: .abbreviated, time: .standard))
         Finished: \(run.finishedAt.formatted(date: .abbreviated, time: .standard))
         Duration: \(run.durationFormatted)

@@ -25,7 +25,7 @@ struct LocalFolderEditSheet: View {
         VStack(spacing: 0) {
             HStack {
                 Text(existingFolder == nil ? "Add Local Folder" : "Edit Local Folder")
-                    .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                    .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
                 Button(existingFolder == nil ? "Add" : "Save") { save() }
@@ -33,7 +33,7 @@ struct LocalFolderEditSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             Form {
                 Section("Folder") {
@@ -73,7 +73,6 @@ struct LocalFolderEditSheet: View {
             .formStyle(.grouped)
         }
         .frame(width: 440)
-        .background(Color.canopyPaper)
         .confirmationDialog(
             "Remove \(existingFolder?.name ?? "this device")?",
             isPresented: $showingRemoveConfirmation,

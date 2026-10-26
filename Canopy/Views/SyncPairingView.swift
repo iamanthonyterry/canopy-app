@@ -14,13 +14,12 @@ struct SyncPairingView: View {
             DriveListPanel()
                 .frame(maxWidth: .infinity)
 
-            Rectangle().fill(Color.canopyRule).frame(width: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(width: 1)
 
             // Right — Cloud Store
             CloudStorePanel()
                 .frame(maxWidth: .infinity)
         }
-        .background(Color.canopyPaper)
     }
 }
 
@@ -37,7 +36,7 @@ private struct DriveListPanel: View {
                 count: appState.hyperDecks.count,
                 tint: .accentColor
             )
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             if appState.hyperDecks.isEmpty {
                 emptyNotice("No HyperDecks configured", icon: "externaldrive")
@@ -66,9 +65,9 @@ private struct CloudStorePanel: View {
                 title: "Cloud Store",
                 icon: "server.rack",
                 count: appState.cloudStores.count,
-                tint: Color.canopySage
+                tint: Color.green
             )
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             if appState.cloudStores.isEmpty {
                 emptyNotice("No Cloud Stores configured", icon: "server.rack")
@@ -118,7 +117,7 @@ private struct DriveRow: View {
             }
 
             if !appState.cloudStores.isEmpty {
-                Rectangle().fill(Color.canopyRule).frame(height: 1)
+                Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
                 destinationPicker
             }
         }
@@ -187,7 +186,7 @@ private struct DriveRow: View {
                 // Selection confirmation
                 if let node = selectedNode, let store = selectedStore {
                     HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.canopySage)
+                        Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.green)
                         Text("→ \(store.name) / \(node.name)")
                             .font(.canopyCaption).foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -309,7 +308,7 @@ private struct FolderTreeRow: View {
 
                 Image(systemName: node.isExpanded ? "folder.fill" : "folder")
                     .font(.canopyCaption)
-                    .foregroundStyle(Color.canopySage)
+                    .foregroundStyle(Color.green)
 
                 Text(node.name)
                     .font(.canopyCaption)
@@ -382,7 +381,7 @@ private struct SelectableFolderTreeRow: View {
 
                 Image(systemName: node.isExpanded ? "folder.fill" : "folder")
                     .font(.canopyCaption)
-                    .foregroundStyle(isSelected ? .white : Color.canopySage)
+                    .foregroundStyle(isSelected ? .white : Color.green)
 
                 Text(node.name)
                     .font(.canopyCaption)
@@ -439,7 +438,7 @@ private struct CloudStorePairingRow: View {
                 statusBadge(pingStatus)
             }
 
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             DisclosureGroup(isExpanded: $isExpanded) {
                 if isLoading {
@@ -474,11 +473,11 @@ private struct CloudStorePairingRow: View {
     private var storeIcon: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color.canopySage.opacity(0.12))
+                .fill(Color.green.opacity(0.12))
                 .frame(width: 42, height: 42)
             Image(systemName: "server.rack")
                 .font(.system(size: 18))
-                .foregroundStyle(Color.canopySage)
+                .foregroundStyle(Color.green)
         }
     }
 
@@ -512,7 +511,7 @@ private struct CloudStorePairingRow: View {
 private func panelHeader(title: String, icon: String, count: Int, tint: Color) -> some View {
     HStack(spacing: 8) {
         Image(systemName: icon).foregroundStyle(tint)
-        Text(title).font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+        Text(title).font(.canopyTitle2).foregroundStyle(Color.primary)
         Spacer()
         Text("\(count)").font(.canopyCaption).padding(.horizontal, 8).padding(.vertical, 3)
             .background(tint.opacity(0.12)).foregroundStyle(tint).clipShape(Capsule())
@@ -523,7 +522,7 @@ private func panelHeader(title: String, icon: String, count: Int, tint: Color) -
 private func emptyNotice(_ message: String, icon: String) -> some View {
     VStack(spacing: 10) {
         Spacer()
-        Image(systemName: icon).font(.system(size: 36)).foregroundStyle(Color.canopySage)
+        Image(systemName: icon).font(.system(size: 36)).foregroundStyle(Color.green)
         Text(message).foregroundStyle(.secondary)
         Spacer()
     }
@@ -535,11 +534,11 @@ private func emptyNotice(_ message: String, icon: String) -> some View {
 private func statusBadge(_ status: DeckStatus) -> some View {
     let (label, color): (String, Color) = switch status {
     case .unknown:      ("Checking", .gray)
-    case .online:       ("Online", Color.canopySage)
-    case .offline:      ("Offline", Color.canopyRust)
+    case .online:       ("Online", Color.green)
+    case .offline:      ("Offline", Color.orange)
     case .unauthorized: ("Login Failed", .orange)
     case .pathNotFound: ("Wrong Path", .orange)
-    case .noMedia:      ("No Drive", Color.canopyRust)
+    case .noMedia:      ("No Drive", Color.orange)
     case .syncing:      ("Syncing", Color.accentColor)
     case .transcoding:  ("Converting", .orange)
     }

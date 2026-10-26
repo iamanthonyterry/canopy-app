@@ -63,6 +63,9 @@ struct WorkflowStepConfigSheet: View {
     @State private var reframeFollowSubject = true
     @State private var controlCommand: DeckCommand = .start
     @State private var waitValue = 1
+    @State private var liveCommand: LiveTranscriptionCommand = .start
+    @State private var liveStopAfterOn = false
+    @State private var liveStopAfterMinutes = 90
     @State private var waitUnit: WaitUnit = .hours
     @State private var notifyHeader = ""
     @State private var notifyMessage = ""
@@ -99,7 +102,7 @@ struct WorkflowStepConfigSheet: View {
                     .keyboardShortcut(.defaultAction)
             }
             .padding()
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
             Form {
                 Text(step.kind.subtitle)
@@ -138,7 +141,7 @@ struct WorkflowStepConfigSheet: View {
                     exportPostsFields
 
                 case .upload:
-                    Label("Uploading is coming soon. Until it's ready this step does nothing when the workflow runs, so you can plan around it now — YouTube, Dropbox and Google Drive are first.", systemImage: "clock.badge")
+                    Label("Uploading is coming soon. Until it's ready this step does nothing when the automation runs, so you can plan around it now — YouTube, Dropbox and Google Drive are first.", systemImage: "clock.badge")
                         .font(.canopyCallout).foregroundStyle(.secondary)
 
                 case .writeCopy:
@@ -155,7 +158,7 @@ struct WorkflowStepConfigSheet: View {
 
                 case .format:
                     Label("This step erases the device's drive. All footage still on it will be permanently deleted — this cannot be undone.", systemImage: "exclamationmark.triangle.fill")
-                        .font(.canopyCallout).foregroundStyle(Color.canopyRust)
+                        .font(.canopyCallout).foregroundStyle(Color.orange)
 
                 case .cleanup:
                     cleanupFields
@@ -165,12 +168,15 @@ struct WorkflowStepConfigSheet: View {
 
                 case .triggerWorkflow:
                     triggerWorkflowFields
+
+                case .liveTranscription:
+                    liveTranscriptionFields
                 }
 
                 Section {
                     Toggle("Ask for confirmation before this step", isOn: $requiresConfirmation)
                 } footer: {
-                    Text("Pauses the workflow here until someone confirms it should continue.")
+                    Text("Pauses the automation here until someone confirms it should continue.")
                         .font(.canopyCaption).foregroundStyle(.secondary)
                 }
             }
@@ -178,7 +184,6 @@ struct WorkflowStepConfigSheet: View {
             .padding(.top, 4)
         }
         .frame(width: 420)
-        .background(Color.canopyPaper)
         .onAppear(perform: load)
         .sheet(isPresented: $showingAddRecipient) {
             AddRecipientSheet(isPresented: $showingAddRecipient) { name, email in
@@ -261,7 +266,7 @@ struct WorkflowStepConfigSheet: View {
                 Text("No HyperDecks added yet.").font(.canopyCaption).foregroundStyle(.secondary)
             }
             if step.kind == .sync {
-                Text("On a folder there's nothing to download — Offload just picks up the files already in it. Turn every deck off for a workflow that only works on folders.")
+                Text("On a folder there's nothing to download — Offload just picks up the files already in it. Turn every deck off for an automation that only works on folders.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
             } else if decks.isNone {
                 Text("With no HyperDeck chosen this step does nothing.")
@@ -308,7 +313,7 @@ struct WorkflowStepConfigSheet: View {
                         }
                     }
                     .labelsHidden()
-                    Text("Uses the folder created earlier in this workflow.")
+                    Text("Uses the folder created earlier in this automation.")
                         .font(.canopyCaption).foregroundStyle(.secondary)
                 }
             } else {
@@ -403,8 +408,8 @@ struct WorkflowStepConfigSheet: View {
 
                 Toggle("Create a subfolder for each device", isOn: $createFolderGroupByDevice)
                 Text(createFolderGroupByDevice
-                     ? "Each device in this workflow gets its own subfolder, named after the device (e.g. \"ISO 1\"), inside the created folder."
-                     : "All devices in this workflow share the created folder directly.")
+                     ? "Each device in this automation gets its own subfolder, named after the device (e.g. \"ISO 1\"), inside the created folder."
+                     : "All devices in this automation share the created folder directly.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
             }
 
@@ -486,7 +491,7 @@ struct WorkflowStepConfigSheet: View {
             .pickerStyle(.segmented)
 
             if controlCommand == .start {
-                Text("Recording keeps rolling while the workflow moves on. Add a Wait and then a Stop Recording step to end it after a set time.")
+                Text("Recording keeps rolling while the automation moves on. Add a Wait and then a Stop Recording step to end it after a set time.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
             } else {
                 Text("Stops recording on the device if it's currently rolling.")
@@ -512,7 +517,7 @@ struct WorkflowStepConfigSheet: View {
                     .frame(width: 160)
                 }
             }
-            Text("Pauses the workflow for \(WaitDurationFormatter.string(forMinutes: waitValue * (waitUnit == .hours ? 60 : 1))) before moving to the next step.")
+            Text("Pauses the automation for \(WaitDurationFormatter.string(forMinutes: waitValue * (waitUnit == .hours ? 60 : 1))) before moving to the next step.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }
     }
@@ -603,7 +608,7 @@ struct WorkflowStepConfigSheet: View {
             LabeledContent("Retention") {
                 Stepper("\(retentionDays) day\(retentionDays == 1 ? "" : "s")", value: $retentionDays, in: 1...365)
             }
-            Text("Deletes files older than this from the workflow's destination folder — not from the device itself.")
+            Text("Deletes files older than this from the automation's destination folder — not from the device itself.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }
     }
@@ -617,7 +622,7 @@ struct WorkflowStepConfigSheet: View {
             }
             Toggle("Also write an .srt subtitle file", isOn: $transcribeWriteSRT)
             Toggle("Skip clips that already have a transcript", isOn: $transcribeSkipExisting)
-            Toggle("Delete the new transcript files when the workflow is over", isOn: $transcribeDeleteWhenDone)
+            Toggle("Delete the new transcript files when the automation is over", isOn: $transcribeDeleteWhenDone)
             Text("Runs entirely on this Mac. A .transcript.json file is saved next to each clip for later steps to use. The first run in a language downloads its speech model.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }
@@ -653,10 +658,10 @@ struct WorkflowStepConfigSheet: View {
                 case .idle:           EmptyView()
                 case .sending:        ProgressView().controlSize(.small)
                 case .sent:           Label("Delivered", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.canopyCaption)
-                case .failed(let why): Text(why).font(.canopyCaption).foregroundStyle(Color.canopyRust).lineLimit(2)
+                case .failed(let why): Text(why).font(.canopyCaption).foregroundStyle(Color.orange).lineLimit(2)
                 }
             }
-            Text("Sends one request per device when this step runs, with the workflow name, the files it handled, and any clip suggestions and copy. A failed request is logged but doesn't stop the workflow. Treat the URL as a secret — it's stored with the workflow.")
+            Text("Sends one request per device when this step runs, with the automation name, the files it handled, and any clip suggestions and copy. A failed request is logged but doesn't stop the automation. Treat the URL as a secret — it's stored with the automation.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }
     }
@@ -717,7 +722,7 @@ struct WorkflowStepConfigSheet: View {
             }
             Toggle("Verify with SHA-256", isOn: $copyToVerify)
             Toggle("Include transcripts and clip suggestions", isOn: $copyToSidecars)
-            Text("Copies the files this workflow handled to a second location. Files already there with the same contents are skipped, so it's safe to re-run. Each copy is written under a temporary name and only moved into place once it's complete.")
+            Text("Copies the files this automation handled to a second location. Files already there with the same contents are skipped, so it's safe to re-run. Each copy is written under a temporary name and only moved into place once it's complete.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }
     }
@@ -798,12 +803,12 @@ struct WorkflowStepConfigSheet: View {
     private var triggerWorkflowFields: some View {
         Group {
             if availableWorkflows.isEmpty {
-                Text("No other workflows to trigger yet — create another workflow first.")
+                Text("No other automations to trigger yet — create another automation first.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
             } else {
-                LabeledContent("Workflow") {
+                LabeledContent("Automation") {
                     Picker("", selection: $triggerWorkflowID) {
-                        Text("Select a workflow").tag(Optional<UUID>.none)
+                        Text("Select an automation").tag(Optional<UUID>.none)
                         ForEach(availableWorkflows) { workflow in
                             Text(workflow.name).tag(Optional(workflow.id))
                         }
@@ -818,8 +823,8 @@ struct WorkflowStepConfigSheet: View {
 
                 Toggle("Wait for it to finish before continuing", isOn: $triggerWaitForCompletion)
                 Text(triggerWaitForCompletion
-                     ? "This workflow pauses here until the triggered one finishes."
-                     : "This workflow starts the other one and immediately continues to its next step.")
+                     ? "This automation pauses here until the triggered one finishes."
+                     : "This automation starts the other one and immediately continues to its next step.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
             }
         }
@@ -838,7 +843,7 @@ struct WorkflowStepConfigSheet: View {
     private var triggerFolderFields: some View {
         Picker("Run on", selection: $triggerUsesCreatedFolder) {
             Text("Its own devices and folders").tag(false)
-            Text("A folder created in this workflow").tag(true)
+            Text("A folder created in this automation").tag(true)
         }
         .onChange(of: triggerUsesCreatedFolder) {
             if triggerUsesCreatedFolder && triggerFolderStepID == nil {
@@ -880,9 +885,9 @@ struct WorkflowStepConfigSheet: View {
 
     private var triggerFolderCaption: String {
         if triggerFolderGroupsByDevice, triggerFolderDeviceID != nil {
-            return "The triggered workflow runs on that device's subfolder, in place on the files already there."
+            return "The triggered automation runs on that device's subfolder, in place on the files already there."
         }
-        return "The triggered workflow runs on this folder, in place on the files already there, instead of on its own devices."
+        return "The triggered automation runs on this folder, in place on the files already there, instead of on its own devices."
     }
 
     private var notifyFields: some View {
@@ -895,7 +900,7 @@ struct WorkflowStepConfigSheet: View {
             Section("Delivery Options") {
                 Picker("Send Options", selection: $notifySendPerDrive) {
                     Text("Individual email per drive completed").tag(true)
-                    Text("Single email for entire workflow").tag(false)
+                    Text("Single email for entire automation").tag(false)
                 }
                 .pickerStyle(.radioGroup)
             }
@@ -979,7 +984,7 @@ struct WorkflowStepConfigSheet: View {
                             Button {
                                 notifyRecipients.removeAll { $0.id == recipient.id }
                             } label: {
-                                Image(systemName: "trash").foregroundStyle(Color.canopyRust)
+                                Image(systemName: "trash").foregroundStyle(Color.orange)
                             }
                             .buttonStyle(.borderless)
                         }
@@ -1029,6 +1034,31 @@ struct WorkflowStepConfigSheet: View {
         selection = TextSelection(insertionPoint: newIndex)
     }
 
+    private var liveTranscriptionFields: some View {
+        Group {
+            Picker("Action", selection: $liveCommand) {
+                ForEach(LiveTranscriptionCommand.allCases) { command in
+                    Text(command.title).tag(command)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if liveCommand == .start {
+                Toggle("Stop automatically", isOn: $liveStopAfterOn)
+                if liveStopAfterOn {
+                    Stepper(value: $liveStopAfterMinutes, in: 5...600, step: 5) {
+                        Text("After \(WaitDurationFormatter.string(forMinutes: liveStopAfterMinutes))")
+                    }
+                }
+                Text("Starts the live transcript sent to the website, using the audio inputs chosen on the Transcription tab. Pair it with a Planning Center service time trigger to transcribe each service.")
+                    .font(.canopyCaption).foregroundStyle(.secondary)
+            } else {
+                Text("Stops the live transcript if it's running.")
+                    .font(.canopyCaption).foregroundStyle(.secondary)
+            }
+        }
+    }
+
     // MARK: - Load / Save
 
     private func load() {
@@ -1037,6 +1067,10 @@ struct WorkflowStepConfigSheet: View {
         switch step.action {
         case .controlDeck(let command):
             controlCommand = command
+        case .liveTranscription(let command, let stopAfterMinutes):
+            liveCommand = command
+            liveStopAfterOn = stopAfterMinutes > 0
+            if stopAfterMinutes > 0 { liveStopAfterMinutes = stopAfterMinutes }
         case .wait(let minutes):
             if minutes >= 60 && minutes % 60 == 0 {
                 waitUnit = .hours
@@ -1122,6 +1156,8 @@ struct WorkflowStepConfigSheet: View {
         switch step.kind {
         case .controlDeck:
             step.action = .controlDeck(command: controlCommand)
+        case .liveTranscription:
+            step.action = .liveTranscription(command: liveCommand, stopAfterMinutes: liveCommand == .start && liveStopAfterOn ? liveStopAfterMinutes : 0)
         case .wait:
             step.action = .wait(minutes: waitUnit == .hours ? waitValue * 60 : waitValue)
         case .createFolder:
@@ -1163,7 +1199,7 @@ struct WorkflowStepConfigSheet: View {
         case .cleanup: step.action = .cleanup(retentionDays: retentionDays)
         case .notify:
             step.action = .notify(
-                header: notifyHeader.isEmpty ? "Workflow update" : notifyHeader,
+                header: notifyHeader.isEmpty ? "Automation update" : notifyHeader,
                 message: notifyMessage,
                 recipients: notifyRecipients,
                 sendPerDrive: notifySendPerDrive
@@ -1204,7 +1240,7 @@ struct AddRecipientSheet: View {
         VStack(alignment: .leading, spacing: 20) {
             Text("Add Recipient")
                 .font(.canopyTitle2)
-                .foregroundStyle(Color.canopyInk)
+                .foregroundStyle(Color.primary)
 
             Form {
                 TextField("Name", text: $name)
@@ -1235,6 +1271,5 @@ struct AddRecipientSheet: View {
         }
         .padding(24)
         .frame(width: 360)
-        .background(Color.canopyPaper)
     }
 }

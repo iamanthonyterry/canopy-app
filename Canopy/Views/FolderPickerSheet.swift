@@ -29,15 +29,14 @@ struct FolderPickerSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             breadcrumb
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             content
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             footer
         }
         .frame(width: 520, height: 420)
-        .background(Color.canopyPaper)
         .task { await mount() }
     }
 
@@ -46,9 +45,9 @@ struct FolderPickerSheet: View {
     private var header: some View {
         HStack {
             Image(systemName: "externaldrive.badge.wifi")
-                .foregroundStyle(Color.canopySage)
+                .foregroundStyle(Color.green)
             Text("Choose Folder — \(store.name)")
-                .font(.canopyTitle2).foregroundStyle(Color.canopyInk)
+                .font(.canopyTitle2).foregroundStyle(Color.primary)
             Spacer()
             Button("Cancel") { dismiss() }
                 .keyboardShortcut(.cancelAction)
@@ -110,7 +109,7 @@ struct FolderPickerSheet: View {
             VStack(spacing: 12) {
                 Spacer()
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 36)).foregroundStyle(Color.canopyRust)
+                    .font(.system(size: 36)).foregroundStyle(Color.orange)
                 Text("Could not connect").font(.canopyHeadline)
                 Text(error).font(.canopyCaption).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center).padding(.horizontal, 24)

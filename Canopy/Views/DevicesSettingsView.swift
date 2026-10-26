@@ -24,14 +24,13 @@ struct DevicesSettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Rectangle().fill(Color.canopyRule).frame(height: 1)
+            Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
             if total == 0 && newDecks.isEmpty && newStores.isEmpty {
                 emptyState
             } else {
                 deviceList
             }
         }
-        .background(Color.canopyPaper)
         .sheet(isPresented: $showingAddDeck) { DeckEditSheet(deck: nil) }
         .sheet(isPresented: $showingAddCloudStore) { CloudStoreEditSheet(store: nil, defaultKind: addCloudStoreKind) }
         .sheet(isPresented: $showingAddLocalFolder) { LocalFolderEditSheet(folder: nil) }
@@ -42,7 +41,7 @@ struct DevicesSettingsView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Devices").font(.canopyTitle).foregroundStyle(Color.canopyInk)
+                Text("Devices").font(.canopyTitle).foregroundStyle(Color.primary)
                 Text("\(appState.hyperDecks.count) decks · \(appState.cloudStores.count) network storage · \(appState.localFolders.count) local folders")
                     .font(.canopySubheadline).foregroundStyle(.secondary)
             }
@@ -106,7 +105,7 @@ struct DevicesSettingsView: View {
         VStack(spacing: 10) {
             Image(systemName: "externaldrive.badge.plus").font(.system(size: 36)).foregroundStyle(.secondary)
             Text("No devices yet").font(.canopyHeadline)
-            Text("Add the HyperDecks, network storage and folders your workflows run on, or scan the network to find them.")
+            Text("Add the HyperDecks, network storage and folders your automations run on, or scan the network to find them.")
                 .font(.canopySubheadline).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 360)
             HStack {
                 Button("Scan Network") { discovery.startScanning() }.buttonStyle(.canopyPrimary)

@@ -111,7 +111,7 @@ class SchedulerService: ObservableObject {
                     }
                     guard isTodayActive(for: trigger) else { continue }
                     guard triggersFiredToday[trigger.id] == nil else { continue }
-                    guard fire(workflow, reason: "Scheduled workflow triggered") else { continue }
+                    guard fire(workflow, reason: "Scheduled automation triggered") else { continue }
                     triggersFiredToday[trigger.id] = Date()
 
                     if !trigger.repeatDaily {
@@ -120,16 +120,58 @@ class SchedulerService: ObservableObject {
 
                 case .oneTime:
                     guard isDue(date: trigger.oneTimeDate) else { continue }
-                    guard fire(workflow, reason: "Scheduled workflow triggered") else { continue }
+                    guard fire(workflow, reason: "Scheduled automation triggered") else { continue }
 
                     // One-time triggers always turn themselves off after firing.
                     disableTrigger(workflowID: workflow.id, triggerID: trigger.id)
+
+                case .planningCenter:
+                    tickPlanningCenter(workflow, trigger: trigger)
 
                 case .recordingStopped, .deviceOnline, .workflowFinished, .folderChanged, .osc, .midi, .voiceCue:
                     // Event triggers are driven by their own sources.
                     continue
                 }
             }
+        }
+    }
+
+    // MARK: - Planning Center service times
+    // A Planning Center trigger fires once per service time of its service
+    // type, `pcoLeadMinutes` before it starts. Times are read through the
+    // Transcription tab's Planning Center sign-in and kept for half an hour.
+
+    private var pcoTimesCache: [String: (fetched: Date, times: [Date])] = [:]
+    private var pcoFetching: Set<String> = []
+    /// The service time each Planning Center trigger last fired for.
+    private var pcoFired: [UUID: Date] = [:]
+    /// How long after its fire time a service can still start a run, so a Mac that
+    /// wakes or launches a few minutes late doesn't skip it.
+    private static let pcoGrace: TimeInterval = 10 * 60
+
+    private func tickPlanningCenter(_ workflow: Workflow, trigger: ScheduleSettings) {
+        guard let typeID = trigger.pcoServiceTypeID else { return }
+        refreshPCOTimes(typeID)
+        let times = pcoTimesCache[typeID]?.times ?? []
+        let now = Date()
+        let lead = TimeInterval(trigger.pcoLeadMinutes * 60)
+        guard let service = times.first(where: {
+            let fireAt = $0.addingTimeInterval(-lead)
+            return now >= fireAt && now < fireAt.addingTimeInterval(Self.pcoGrace) && pcoFired[trigger.id] != $0
+        }) else { return }
+        guard fire(workflow, reason: "Planning Center service at \(service.formatted(date: .omitted, time: .shortened))") else { return }
+        pcoFired[trigger.id] = service
+    }
+
+    private func refreshPCOTimes(_ typeID: String) {
+        if let cached = pcoTimesCache[typeID], Date().timeIntervalSince(cached.fetched) < 30 * 60 { return }
+        guard !pcoFetching.contains(typeID), let model = AppModel.current else { return }
+        pcoFetching.insert(typeID)
+        Task { @MainActor in
+            let times = await model.pcoServiceTimes(typeID: typeID)
+            pcoFetching.remove(typeID)
+            // An empty answer means signed out or offline; keep what we had and try again next tick.
+            if !times.isEmpty { pcoTimesCache[typeID] = (Date(), times) }
         }
     }
 
@@ -292,7 +334,7 @@ class SchedulerService: ObservableObject {
                 let what = mode == .recordingStopped ? "stopped recording" : "came online"
                 enqueue(
                     workflow, trigger: trigger, device: .hyperDeck(deck),
-                    reason: "\(deck.name) \(what) — workflow triggered"
+                    reason: "\(deck.name) \(what) — automation triggered"
                 )
             }
         }
@@ -360,7 +402,7 @@ class SchedulerService: ObservableObject {
                 }
                 enqueue(
                     workflow, trigger: trigger, device: nil,
-                    reason: "\(finished.name) finished — workflow triggered"
+                    reason: "\(finished.name) finished — automation triggered"
                 )
             }
         }
@@ -399,7 +441,7 @@ class SchedulerService: ObservableObject {
                 guard !ready.isEmpty else { continue }
 
                 let count = ready.count
-                let reason = "\(count) new clip\(count == 1 ? "" : "s") in \(folder.name) — workflow triggered"
+                let reason = "\(count) new clip\(count == 1 ? "" : "s") in \(folder.name) — automation triggered"
                 let key = "\(trigger.id.uuidString)|\(folder.name)"
                 let cooledDown = lastEventFire[key].map {
                     Date().timeIntervalSince($0) >= Double(max(trigger.cooldownMinutes, 0)) * 60

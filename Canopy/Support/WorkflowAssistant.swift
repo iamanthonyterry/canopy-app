@@ -15,7 +15,7 @@ enum DraftStepKind {
 
 @Generable
 struct WorkflowDraft {
-    @Guide(description: "Short workflow name, 2-4 words")
+    @Guide(description: "Short automation name, 2-4 words")
     var name: String
 
     @Guide(description: "Only the steps the request asks for, in the order they should run", .maximumCount(10))
@@ -312,7 +312,7 @@ struct RequestDetails {
 
     /// "rename the workflow to Friday Ingest" / "call this workflow Friday Ingest".
     var newWorkflowName: String? {
-        guard let m = capture(#"(?:rename|call|name)\s+(?:the|this|my)\s+workflow\s+(?:to\s+|as\s+)?["“]?([a-z0-9][a-z0-9 _\-]{0,40})"#) else { return nil }
+        guard let m = capture(#"(?:rename|call|name)\s+(?:the|this|my)\s+(?:workflow|automation)\s+(?:to\s+|as\s+)?["“]?([a-z0-9][a-z0-9 _\-]{0,40})"#) else { return nil }
         let raw = m[0].trimmingCharacters(in: .whitespaces)
         return raw.isEmpty ? nil : raw
     }
@@ -425,7 +425,7 @@ enum WorkflowDraftBuilder {
             notes.append("Set to process the files in \(folders.map(\.name).joined(separator: ", ")).")
         }
         let workflow = Workflow(
-            name: name.isEmpty ? "New Workflow" : name, steps: steps,
+            name: name.isEmpty ? "New Automation" : name, steps: steps,
             targets: folders.map { .localFolder($0.id) }, triggers: triggers
         )
         return WorkflowDraftResult(workflow: workflow, notes: notes)
@@ -499,7 +499,7 @@ enum WorkflowDraftBuilder {
             // With several decks, one email per deck is the noisy choice
             // unless the request asks for it.
             let perDrive = details.notifiesPerDrive ?? !WorkflowEfficiency.hasSeveralDecks(details.context)
-            return WorkflowStep(action: .notify(header: "Workflow update", message: "", recipients: [], sendPerDrive: perDrive))
+            return WorkflowStep(action: .notify(header: "Automation update", message: "", recipients: [], sendPerDrive: perDrive))
         }
     }
 
@@ -527,7 +527,7 @@ enum WorkflowDraftBuilder {
         guard !trimmed.isEmpty else { return }
         for i in steps.indices {
             if case .notify(let header, let message, let recipients, let perDrive) = steps[i].action,
-               header == "Workflow update" {
+               header == "Automation update" || header == "Workflow update" {
                 steps[i].action = .notify(header: trimmed, message: message, recipients: recipients, sendPerDrive: perDrive)
             }
         }
@@ -1010,7 +1010,7 @@ enum WorkflowAssistant {
     Include ONLY steps the request asks for. Do not add recording, waiting, folders, or anything else that \
     was not mentioned. Keep them in the order the request describes.
     Words about WHEN it starts are not steps: times, days of the week, "tomorrow", "when the recording \
-    stops", "when the deck comes online", "after another workflow finishes", "when new clips arrive".
+    stops", "when the deck comes online", "after another automation finishes", "when new clips arrive".
     Examples:
     "offload my clips" -> offload
     "copy the footage, make proxies and email me" -> offload, makeProxies, notify
@@ -1132,7 +1132,7 @@ extension DraftStepKind {
             case .format:       self = .formatDrive
             case .cleanup:      self = .cleanup
             case .notify:       self = .notify
-            case .controlDeck, .upload, .triggerWorkflow: return nil
+            case .controlDeck, .upload, .triggerWorkflow, .liveTranscription: return nil
             }
         }
     }

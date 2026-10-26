@@ -242,6 +242,8 @@ struct SyncTask: Identifiable, Codable {
 enum ScheduleMode: String, Codable, CaseIterable, Identifiable {
     case daily
     case oneTime
+    /// A Planning Center service time for a chosen service type.
+    case planningCenter
     /// A HyperDeck that was recording has stopped.
     case recordingStopped
     /// A HyperDeck that was unreachable (or had lost its drive or login) is
@@ -264,9 +266,10 @@ enum ScheduleMode: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .daily:            return "Daily"
         case .oneTime:          return "One Time"
+        case .planningCenter:   return "Planning Center Service"
         case .recordingStopped: return "Recording Stops"
         case .deviceOnline:     return "Device Comes Online"
-        case .workflowFinished: return "Workflow Finishes"
+        case .workflowFinished: return "Automation Finishes"
         case .folderChanged:    return "New Clips in Folder"
         case .osc:              return "OSC Message"
         case .midi:             return "MIDI Message"
@@ -278,6 +281,7 @@ enum ScheduleMode: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .daily:            return "clock"
         case .oneTime:          return "calendar"
+        case .planningCenter:   return "calendar.badge.clock"
         case .recordingStopped: return "stop.circle"
         case .deviceOnline:     return "bolt.horizontal.circle"
         case .workflowFinished: return "arrow.triangle.branch"
@@ -290,9 +294,9 @@ enum ScheduleMode: String, Codable, CaseIterable, Identifiable {
 
     /// True for triggers that react to something happening rather than to
     /// the clock.
-    var isEvent: Bool { self != .daily && self != .oneTime }
+    var isEvent: Bool { self != .daily && self != .oneTime && self != .planningCenter }
 
-    static let scheduleModes: [ScheduleMode] = [.daily, .oneTime]
+    static let scheduleModes: [ScheduleMode] = [.daily, .oneTime, .planningCenter]
     static let eventModes: [ScheduleMode] = [.recordingStopped, .deviceOnline, .workflowFinished, .folderChanged, .osc, .midi, .voiceCue]
     /// Triggers that come from outside the app (a cue list, a controller, someone speaking) rather than from a device or the clock.
     var isRemote: Bool { self == .osc || self == .midi || self == .voiceCue }
@@ -388,6 +392,13 @@ struct ScheduleSettings: Codable, Hashable, Identifiable {
     var midiNumber: Int = 60
     /// `voiceCue`: what to say. Several phrases can be separated by commas, and `{number}` isn't used here.
     var voicePhrase: String = ""
+    // Planning Center mode.
+    /// `planningCenter`: the service type whose service times fire this trigger.
+    var pcoServiceTypeID: String? = nil
+    var pcoServiceTypeName: String = ""
+    /// `planningCenter`: how many minutes before each service time to run.
+    var pcoLeadMinutes: Int = 15
+
     /// Remote modes: the shortest gap between two runs, so a button that bounces or a phrase heard twice starts one run.
     var cooldownSeconds: Int = 3
 
@@ -427,9 +438,12 @@ struct ScheduleSettings: Codable, Hashable, Identifiable {
         switch mode {
         case .daily:            return repeatDaily ? "\(displayTime) · \(displayWeekdays)" : displayTime
         case .oneTime:          return displayOneTimeDate
+        case .planningCenter:
+            let name = pcoServiceTypeName.isEmpty ? "Planning Center service" : pcoServiceTypeName
+            return pcoLeadMinutes == 0 ? "At each \(name) time" : "\(pcoLeadMinutes) min before each \(name) time"
         case .recordingStopped: return "When recording stops"
         case .deviceOnline:     return "When a device comes online"
-        case .workflowFinished: return "When a workflow finishes"
+        case .workflowFinished: return "When an automation finishes"
         case .folderChanged:    return "When new clips arrive"
         case .osc:              return oscAddress.isEmpty ? "When an OSC message arrives" : "OSC \(oscAddress)"
         case .midi:             return "MIDI \(midiKind.displayName) · Ch \(midiChannel + 1) · #\(midiNumber)"
@@ -441,6 +455,7 @@ struct ScheduleSettings: Codable, Hashable, Identifiable {
         case isEnabled, mode, hour, minute, repeatDaily, selectedWeekdays, oneTimeDate
         case deviceID, sourceWorkflowID, finishCondition, cooldownMinutes
         case oscAddress, oscArgument, midiKind, midiChannel, midiNumber, voicePhrase, cooldownSeconds
+        case pcoServiceTypeID, pcoServiceTypeName, pcoLeadMinutes
     }
 }
 
@@ -468,5 +483,8 @@ extension ScheduleSettings {
         midiNumber = try c.decodeIfPresent(Int.self, forKey: .midiNumber) ?? 60
         voicePhrase = try c.decodeIfPresent(String.self, forKey: .voicePhrase) ?? ""
         cooldownSeconds = try c.decodeIfPresent(Int.self, forKey: .cooldownSeconds) ?? 3
+        pcoServiceTypeID = try c.decodeIfPresent(String.self, forKey: .pcoServiceTypeID)
+        pcoServiceTypeName = try c.decodeIfPresent(String.self, forKey: .pcoServiceTypeName) ?? ""
+        pcoLeadMinutes = try c.decodeIfPresent(Int.self, forKey: .pcoLeadMinutes) ?? 15
     }
 }
