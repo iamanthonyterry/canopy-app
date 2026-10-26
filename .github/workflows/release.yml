@@ -1,8 +1,8 @@
 name: Release
 
-# Manual only. Canopy is the merged Transcriber + Canopy app now, and a release has to go out on two update
-# feeds (iamanthonyterry/transcriber, with a zip holding Transcriber.app, and iamanthonyterry/Canopy), so it is
-# cut with ./release.sh, not from a push to main. Running this by hand publishes only the Canopy feed.
+# Manual only, and not the way to release. Updating installs need a zip holding Transcriber.app and the Planning
+# Center credentials in the build, which only ./release.sh provides. Running this by hand publishes a zip
+# holding Canopy.app without them.
 
 on:
   workflow_dispatch:

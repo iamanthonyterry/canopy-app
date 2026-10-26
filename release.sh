@@ -2,19 +2,15 @@
 set -euo pipefail
 
 # Canopy release script
-# Usage: ./release.sh 0.0.40-alpha
-# Github Release push:
-#  gh release create v0.0.40-alpha build/Canopy-0.0.40-alpha.zip build/appcast.xml --title "0.0.40-alpha" --notes "Fortieth alpha release"
+# Usage: ./release.sh 3.0.1
 # Bumps MARKETING_VERSION, archives, exports, notarizes, staples, zips, and
 # generates the Sparkle appcasts — ready to upload to GitHub Releases.
 #
-# Canopy is one app now (it took over Transcriber's bundle id and update feed), so
-# there is nothing to embed. Two appcasts come out, for the same zip:
-#   build/appcast-transcriber/  for iamanthonyterry/transcriber, the feed every installed copy now follows.
-#                               Its zip holds the app named Transcriber.app (see below for why).
-#   build/appcast-Canopy/       for iamanthonyterry/Canopy, the feed the old separate Canopy still follows,
-#                               so those installs update straight into this app (its zip holds Canopy.app)
-# Publish the first for every release. Publish the second once, for the release that retires the old Canopy.
+# Canopy is one app (it took over Transcriber's bundle id and update feed), so there is nothing to embed.
+# One appcast comes out, in build/appcast/, for the iamanthonyterry/canopy-app repo (formerly "transcriber").
+# Installed copies still ask github.com/iamanthonyterry/transcriber/releases/latest/download/appcast.xml,
+# which GitHub redirects to canopy-app. Never create a new repo called "transcriber": it would break that redirect.
+# The old Canopy repo is archived, so its feed is gone. Its zip no longer gets built.
 # CURRENT_PROJECT_VERSION is the date, so it is always newer than any earlier Transcriber or Canopy build.
 # STOP_BEFORE_NOTARIZE=1 builds and signs everything but doesn't submit it, for checking the bundle.
 
@@ -102,31 +98,21 @@ echo "==> Zipping stapled app for distribution"
 rm -f "$BUILD_DIR/Canopy-notarize.zip"
 ditto -c -k --keepParent "$APP_PATH" "$ZIP_PATH"
 
-echo "==> Generating signed Sparkle appcasts"
-# Sparkle finds the new app inside an update zip by the host's file name, or by the host's bundle id. So each feed's
-# zip names the app for the Macs that follow it:
-#   transcriber feed: Transcriber.app. Installs there are called Transcriber.app, and some still have Transcriber's
-#                     earlier bundle id, which only the file name can match. After updating, the app renames
-#                     itself to Canopy.app (SelfRename), and later updates match it by bundle id.
-#   Canopy feed:      Canopy.app, which is what the old Canopy is called.
+echo "==> Generating signed Sparkle appcast"
+# Sparkle finds the new app inside an update zip by the host's file name, or by the host's bundle id. Installs that
+# began as Transcriber are called Transcriber.app, and some still have Transcriber's earlier bundle id, which only the
+# file name can match. So the zip holds the app named Transcriber.app. After updating, the app renames itself to
+# Canopy.app (SelfRename), and later updates match it by bundle id.
 # Renaming the bundle folder doesn't touch its signature or its stapled notarization ticket.
-for REPO_NAME in transcriber Canopy; do
-  DIR="$BUILD_DIR/appcast-$REPO_NAME"
-  rm -rf "$DIR"; mkdir -p "$DIR"
-  if [ "$REPO_NAME" = "transcriber" ]; then
-    STAGE="$BUILD_DIR/stage-transcriber"
-    rm -rf "$STAGE"; mkdir -p "$STAGE"
-    ditto "$APP_PATH" "$STAGE/Transcriber.app"
-    codesign --verify --deep --strict "$STAGE/Transcriber.app"
-    ditto -c -k --keepParent "$STAGE/Transcriber.app" "$DIR/Canopy-$VERSION.zip"
-    rm -rf "$STAGE"
-  else
-    cp "$ZIP_PATH" "$DIR/"
-  fi
-  "$SPARKLE_BIN/generate_appcast" --download-url-prefix "https://github.com/iamanthonyterry/$REPO_NAME/releases/download/v$VERSION/" "$DIR"
-done
+DIR="$BUILD_DIR/appcast"
+STAGE="$BUILD_DIR/stage"
+rm -rf "$DIR" "$STAGE"; mkdir -p "$DIR" "$STAGE"
+ditto "$APP_PATH" "$STAGE/Transcriber.app"
+codesign --verify --deep --strict "$STAGE/Transcriber.app"
+ditto -c -k --keepParent "$STAGE/Transcriber.app" "$DIR/Canopy-$VERSION.zip"
+rm -rf "$STAGE"
+"$SPARKLE_BIN/generate_appcast" --download-url-prefix "https://github.com/iamanthonyterry/canopy-app/releases/download/v$VERSION/" "$DIR"
 
 echo ""
-echo "Done. Create the GitHub release (tag v$VERSION) in each repo you are updating:"
-echo "  gh release create v$VERSION $BUILD_DIR/appcast-transcriber/Canopy-$VERSION.zip $BUILD_DIR/appcast-transcriber/appcast.xml --repo iamanthonyterry/transcriber --title \"$VERSION\""
-echo "  gh release create v$VERSION $BUILD_DIR/appcast-Canopy/Canopy-$VERSION.zip $BUILD_DIR/appcast-Canopy/appcast.xml --repo iamanthonyterry/Canopy --title \"$VERSION\"   # once, to move old Canopy installs over"
+echo "Done. Create the GitHub release (tag v$VERSION):"
+echo "  gh release create v$VERSION $DIR/Canopy-$VERSION.zip $DIR/appcast.xml --repo iamanthonyterry/canopy-app --title \"$VERSION\""
