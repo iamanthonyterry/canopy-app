@@ -37,7 +37,7 @@ struct WorkflowStepConfigSheet: View {
     @State private var pattern = ""
     @State private var retentionDays = 30
     @State private var transcribeLocale = Locale.current.identifier
-    @State private var transcribeWriteSRT = true
+    @State private var transcribeWriteSRT = false
     @State private var transcribeSkipExisting = true
     @State private var transcribeDeleteWhenDone = false
     @State private var findClipsMax = 5
@@ -624,10 +624,10 @@ struct WorkflowStepConfigSheet: View {
                     Text(Locale.current.localizedString(forIdentifier: id) ?? id).tag(id)
                 }
             }
-            Toggle("Also write an .srt subtitle file", isOn: $transcribeWriteSRT)
+            Toggle("Also save an .srt subtitle file next to each clip", isOn: $transcribeWriteSRT)
             Toggle("Skip clips that already have a transcript", isOn: $transcribeSkipExisting)
-            Toggle("Delete the new transcript files when the automation is over", isOn: $transcribeDeleteWhenDone)
-            Text("Runs entirely on this Mac. A .transcript.json file is saved next to each clip for later steps to use. The first run in a language downloads its speech model.")
+            Toggle("Forget the new transcripts when the automation is over", isOn: $transcribeDeleteWhenDone)
+            Text("Runs entirely on this Mac. The transcript is kept inside Canopy for later steps to use, not next to your clips. The first run in a language downloads its speech model.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }
     }
@@ -725,7 +725,7 @@ struct WorkflowStepConfigSheet: View {
                 }
             }
             Toggle("Verify with SHA-256", isOn: $copyToVerify)
-            Toggle("Include transcripts and clip suggestions", isOn: $copyToSidecars)
+            Toggle("Include subtitle files and clip suggestions", isOn: $copyToSidecars)
             Text("Copies the files this automation handled to a second location. Files already there with the same contents are skipped, so it's safe to re-run. Each copy is written under a temporary name and only moved into place once it's complete.")
                 .font(.canopyCaption).foregroundStyle(.secondary)
         }

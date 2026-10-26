@@ -388,7 +388,7 @@ enum StepAction: Hashable {
     case sync(destination: SyncDestination, verify: Bool = false, deleteFromDevice: Bool = false)
     case convert(preset: ConversionSettings.FFmpegPreset, deleteOriginal: Bool, maxParallelJobs: Int, convertInPlace: Bool = false)
     case rename(pattern: String)
-    /// Writes a `.transcript.json` sidecar (and optionally an `.srt`) next to
+    /// Keeps the transcript in Canopy's own folder (and optionally writes an `.srt`) next to
     /// each clip. `skipExisting` leaves clips that already have a transcript alone.
     /// `deleteWhenDone` removes the transcript files this step created once
     /// the whole workflow has finished, so later steps can still use them.
@@ -462,7 +462,7 @@ enum StepAction: Hashable {
         case .sync:            return .sync(destination: .global, verify: false, deleteFromDevice: false)
         case .convert:         return .convert(preset: .fast, deleteOriginal: true, maxParallelJobs: 2, convertInPlace: false)
         case .rename:          return .rename(pattern: "{device}_{date}_{index}")
-        case .transcribe:      return .transcribe(locale: Locale.current.identifier, writeSRT: true, skipExisting: true)
+        case .transcribe:      return .transcribe(locale: Locale.current.identifier, writeSRT: false, skipExisting: true)
         case .findClips:       return .findClips(maxClips: 5, minSeconds: 20, maxSeconds: 60)
         case .exportPosts:     return .exportPosts(format: .vertical, captions: true)
         case .writeCopy:       return .writeCopy(platform: .general, hashtagCount: 5)
@@ -557,7 +557,7 @@ enum StepAction: Hashable {
             case .cloudStore:  place = "the selected cloud store"
             case .localFolder: place = "the selected local folder"
             }
-            return "Copies files to \(place)" + (verify ? " · verified with SHA-256" : "") + (includeSidecars ? " · with transcripts and clips" : "")
+            return "Copies files to \(place)" + (verify ? " · verified with SHA-256" : "") + (includeSidecars ? " · with subtitles and clips" : "")
         case .liveTranscription(let command, let stopAfterMinutes):
             switch command {
             case .start: return stopAfterMinutes > 0 ? "Starts the live transcript, then stops it after \(WaitDurationFormatter.string(forMinutes: stopAfterMinutes))" : "Starts the live transcript and keeps it going"

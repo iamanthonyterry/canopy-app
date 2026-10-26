@@ -1291,7 +1291,7 @@ final class WorkflowEngine: ObservableObject {
             do {
                 let transcript = try await TranscriptionService.transcribe(video: url, localeID: locale)
                 try transcript.write(for: url)
-                if deleteWhenDone { session.transcriptFilesToDelete.insert(Transcript.sidecarURL(for: url)) }
+                if deleteWhenDone { session.transcriptFilesToDelete.insert(Transcript.cacheURL(for: url)) }
                 if writeSRT {
                     try transcript.writeSRT(for: url)
                     if deleteWhenDone { session.transcriptFilesToDelete.insert(Transcript.srtURL(for: url)) }
