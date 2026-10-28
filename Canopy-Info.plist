@@ -14,6 +14,8 @@
 	</array>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>Canopy streams this Mac's screen to your paired TailDesk device when Remote Host is on.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Canopy listens to the sound board to create live captions.</string>
 	<key>PCOClientID</key>

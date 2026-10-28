@@ -53,6 +53,7 @@ struct CanopyApp: App {
         WorkflowSyncService.shared.start()
         RemoteControlEngine.shared.applySettings()
         WorkflowConfirmationPanelController.shared.start(appState: AppState.shared)
+        RemoteHostService.shared.startIfEnabled()
     }
 
     var body: some Scene {

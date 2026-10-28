@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The pages of the Settings window. The menu bar opens the window on a chosen page by setting `selected`.
 enum SettingsTab: String, CaseIterable {
-    case transcription, workflows, devices, more
+    case transcription, workflows, connections, devices, more
 
     static let storageKey = "settings.tab"
 
@@ -27,6 +27,9 @@ struct SettingsRoot: View {
             }
             Tab("Automations", systemImage: "flowchart", value: SettingsTab.workflows.rawValue) {
                 WorkflowsPage()
+            }
+            Tab("Connections", systemImage: "link", value: SettingsTab.connections.rawValue) {
+                ConnectionsView(model: model)
             }
             Tab("Devices", systemImage: "externaldrive.connected.to.line.below", value: SettingsTab.devices.rawValue) {
                 DevicesSettingsView()

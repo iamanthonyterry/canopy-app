@@ -1,5 +1,5 @@
 {
-  "originHash" : "c9a1dedaf41cbbef052c20b1af3351b7430f24e4f901465599ee078e84178466",
+  "originHash" : "199755a588c78885fad31c265a6590537e1b1c09cf0225c2f5ab7d6a0cc865c5",
   "pins" : [
     {
       "identity" : "eventsource",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "86b5096ac59ab46e66bd1f6377c604bc1dab0bc2",
         "version" : "1.5.1"
+      }
+    },
+    {
+      "identity" : "iroh-ffi",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/n0-computer/iroh-ffi",
+      "state" : {
+        "revision" : "66a8d619a4d791d458d582f312df6e0ab42bc541",
+        "version" : "1.2.0"
       }
     },
     {

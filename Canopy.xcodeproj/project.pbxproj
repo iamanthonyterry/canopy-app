@@ -11,6 +11,7 @@
 		0BEF49CF23D7EDCED85E6811 /* HuggingFace in Frameworks */ = {isa = PBXBuildFile; productRef = 4EA037117187CDC79B79E0DF /* HuggingFace */; };
 		29B35F672E54D321C9281F63 /* ChurchKitAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 13B1DE8DD553DE200A1D8A25 /* ChurchKitAuth */; };
 		63A8A1CEE92A259E8D42720D /* MLXFoundationModels in Frameworks */ = {isa = PBXBuildFile; productRef = 04AD71F31915CDA2C17136D6 /* MLXFoundationModels */; };
+		A1B2C3D4E5F6071829304A01 /* IrohLib in Frameworks */ = {isa = PBXBuildFile; productRef = A1B2C3D4E5F6071829304A02 /* IrohLib */; };
 		644D5A602FFC42C900204FD5 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 644D5A5F2FFC42C900204FD5 /* Sparkle */; };
 		64E3101C2FDB0EEF00BD0F01 /* UserNotifications.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 64E3101A2FDB0EEF00BD0F01 /* UserNotifications.framework */; };
 		64E3101D2FDB0EEF00BD0F01 /* UserNotificationsUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 64E3101B2FDB0EEF00BD0F01 /* UserNotificationsUI.framework */; };
@@ -70,6 +71,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				644D5A602FFC42C900204FD5 /* Sparkle in Frameworks */,
+				A1B2C3D4E5F6071829304A01 /* IrohLib in Frameworks */,
 				64E3101D2FDB0EEF00BD0F01 /* UserNotificationsUI.framework in Frameworks */,
 				64E3101C2FDB0EEF00BD0F01 /* UserNotifications.framework in Frameworks */,
 				01419CC2AA40F1E6A9333B16 /* MLXLLM in Frameworks */,
@@ -152,6 +154,7 @@
 			name = Canopy;
 			packageProductDependencies = (
 				644D5A5F2FFC42C900204FD5 /* Sparkle */,
+				A1B2C3D4E5F6071829304A02 /* IrohLib */,
 				B686A94BB38FB0C0808A07E8 /* MLXLLM */,
 				4C3BAEA99CBB392CB6ACF539 /* MLXLMCommon */,
 				4F27859973081C2896FDC972 /* MLXHuggingFace */,
@@ -243,6 +246,7 @@
 			packageReferences = (
 				2C47262E0813044DAEAD3D3F /* XCLocalSwiftPackageReference "ChurchKit" */,
 				644D5A5E2FFC40D300204FD5 /* XCRemoteSwiftPackageReference "Sparkle" */,
+				A1B2C3D4E5F6071829304A03 /* XCRemoteSwiftPackageReference "iroh-ffi" */,
 				235E431FB2685D1C1B286092 /* XCRemoteSwiftPackageReference "mlx-swift-lm" */,
 				E81DE8DA31879E0E64265EC2 /* XCRemoteSwiftPackageReference "swift-huggingface" */,
 				5788FC8A07D09E0811815CD6 /* XCRemoteSwiftPackageReference "swift-transformers" */,
@@ -698,6 +702,14 @@
 				minimumVersion = 0.9.0;
 			};
 		};
+		A1B2C3D4E5F6071829304A03 /* XCRemoteSwiftPackageReference "iroh-ffi" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/n0-computer/iroh-ffi";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -750,6 +762,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2C47262E0813044DAEAD3D3F /* XCLocalSwiftPackageReference "ChurchKit" */;
 			productName = ChurchKitCore;
+		};
+		A1B2C3D4E5F6071829304A02 /* IrohLib */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1B2C3D4E5F6071829304A03 /* XCRemoteSwiftPackageReference "iroh-ffi" */;
+			productName = IrohLib;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
