@@ -9,10 +9,15 @@ nonisolated enum RemoteMsg: UInt8, Sendable {
     case frame = 4    // host -> viewer, u8 keyframe flag + AVCC (4-byte length prefixed) HEVC sample
     case input = 5    // viewer -> host, JSON RemoteInput
     case denied = 6   // host -> viewer, UTF-8 reason
+    case termOpen = 7   // viewer -> host, JSON RemoteTermSize: start a login shell on a PTY
+    case termData = 8   // both ways, raw terminal bytes (viewer keystrokes in, shell output out)
+    case termResize = 9 // viewer -> host, JSON RemoteTermSize
+    case termExit = 10  // host -> viewer, the shell ended (empty payload)
 }
 
 nonisolated struct RemoteHello: Codable, Sendable { var token: String }
 nonisolated struct RemoteInfo: Codable, Sendable { var width: Int; var height: Int }
+nonisolated struct RemoteTermSize: Codable, Sendable { var cols: Int; var rows: Int }
 
 /// Pointer positions are normalised 0...1 across the streamed display.
 nonisolated struct RemoteInput: Codable, Sendable {

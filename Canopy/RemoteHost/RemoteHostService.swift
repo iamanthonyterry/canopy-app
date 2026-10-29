@@ -165,6 +165,7 @@ private nonisolated final class Viewer: @unchecked Sendable {
     private var decoder = RemoteFraming.Decoder()
     private var authed = false
     private var closed = false
+    private var terminal: TerminalHost?
     var onClose: (@Sendable () -> Void)?
 
     init(link: RemoteLink, token: String, encoder: ScreenEncoder) {
@@ -180,6 +181,7 @@ private nonisolated final class Viewer: @unchecked Sendable {
         queue.async { [self] in
             guard !closed else { return }
             closed = true
+            terminal?.stop(); terminal = nil
             link.close()
             onClose?()
         }
@@ -213,6 +215,21 @@ private nonisolated final class Viewer: @unchecked Sendable {
         case .input:
             guard authed, let input = try? JSONDecoder().decode(RemoteInput.self, from: payload) else { return }
             InputInjector.apply(input)
+        case .termOpen:
+            guard authed, terminal == nil, let size = try? JSONDecoder().decode(RemoteTermSize.self, from: payload) else { return }
+            let t = TerminalHost(
+                onOutput: { [weak self] data in self?.queue.async { self?.send(.termData, data) } },
+                onExit: { [weak self] in
+                    self?.queue.async { self?.terminal = nil; self?.send(.termExit, Data()) }
+                })
+            terminal = t
+            t.start(cols: size.cols, rows: size.rows)
+        case .termData:
+            guard authed else { return }
+            terminal?.write(payload)
+        case .termResize:
+            guard authed, let size = try? JSONDecoder().decode(RemoteTermSize.self, from: payload) else { return }
+            terminal?.resize(cols: size.cols, rows: size.rows)
         default: break
         }
     }
