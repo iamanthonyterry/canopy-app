@@ -1,59 +1,50 @@
 # Canopy
 
-Canopy is a macOS app for organizing and syncing media across record decks
-and storage. It manages Blackmagic HyperDecks and Blackmagic Cloud Stores on
-the local network, automates pulling footage off them, converts and renames
-it, and keeps it backed up to a shared destination — so a production's
-recordings end up organized on shared storage without anyone manually
-copying files off a deck.
+Canopy is a macOS menu bar app for church A/V teams. It does three jobs:
 
-## What it does
+1. **Live captions and voice cues.** It listens to the sound board, sends a live
+   transcript (and optional translations) to the church website, and turns spoken
+   phrases into cues: OSC, MIDI, web requests, or whole automations.
+2. **Automations.** Step-by-step jobs that run on a schedule, a trigger, or by hand:
+   record on HyperDecks, offload, make proxies, rename, copy, clean up, format a
+   drive, send email, start live transcription, send a cue, and more.
+3. **Remote Host.** Lets a paired iPad running TailDesk see and control this Mac.
 
-- **Device management** — discover and add HyperDecks (via Bonjour/network
-  scan or manually) and Blackmagic Cloud Stores, monitor their reachability,
-  login, and drive/media status in real time, and browse and preview files
-  on them directly from the app.
-- **Workflows** — build multi-step automations per HyperDeck or set of
-  HyperDecks: start/stop recording, wait, sync (download new files), convert
-  (transcode to MP4 at a chosen quality preset), rename (with tokens like
-  device name, date, and file index), format a drive, clean up old files on
-  the destination, and send an email notification. Steps can require manual
-  confirmation before continuing, and workflows can target specific decks or
-  all configured ones.
-- **Scheduling** — any workflow can run automatically on a daily recurring
-  schedule (optionally limited to specific weekdays) or at a one-time date
-  and time, with no one needing to trigger it by hand.
-- **Sync destination** — a shared SMB volume (e.g. a Blackmagic Cloud Store)
-  that workflows sync footage to, organized under a configurable base path.
-- **Remote control** — an OSC and MIDI listener lets external control
-  surfaces (TouchOSC, Companion, a MIDI controller, etc.) trigger HyperDeck
-  record/stop/format actions, either through user-defined mappings or a
-  built-in zero-configuration OSC address scheme.
-- **Alerting & notifications** — get an immediate system notification (and
-  optionally an email) if a recording or in-progress device goes offline,
-  loses its login, or loses its drive — not just a passive status badge.
-- **Show Mode** — a simplified, large-text status view meant for a second
-  monitor during a live event: device health and active recordings at a
-  glance, nothing else.
-- **History** — a searchable log of past workflow runs, including what was
-  processed, errors, and duration.
-- **Roles** — an Admin mode with full access to devices, workflows, and
-  settings, and a restricted Content Manager mode for operators who should
-  only view and pull clips, not change configuration.
+Canopy has no Dock icon. Everything is in the menu bar and the Settings window.
+
+## Using it
+
+- **Menu bar:** start or stop transcribing, pick audio inputs, run an automation,
+  stop a running one, resume one interrupted by a crash, open the live transcript.
+- **Settings → General:** open at login, updates, data backup.
+- **Settings → Transcription:** audio inputs, translation, saved transcripts,
+  vocabulary and corrections, sensitivity, voice cue options.
+- **Settings → Automations:** build, run and duplicate automations; the run history
+  sits beside them. "Describe It" drafts one from plain language.
+- **Settings → Devices:** HyperDecks, network storage (Cloud Store, Synology NAS)
+  and local folders, found by scan or added by hand; file naming and performance.
+- **Settings → Connections:** the church website, Planning Center, email, Remote
+  Host, OSC/MIDI control, live alerts and on-device AI.
+
+Triggers for an automation: daily or one-time schedule, Planning Center service
+time, OSC message, MIDI message, voice cue, or another automation.
 
 ## Requirements
 
-- macOS
-- Network access to the HyperDecks and Cloud Store(s) being managed
+- macOS 26 or later
+- Network access to the devices being managed; a microphone or audio interface
+  for captions
 
 ## Project structure
 
-- `Canopy/Models/` — persisted app state and data types (devices, workflows,
-  remote-control mappings, settings)
-- `Canopy/Support/` — services that do the actual work (FTP/SMB transfer,
-  conversion, connection monitoring, discovery, scheduling, alerting,
-  remote control listeners, email)
-- `Canopy/Views/` — SwiftUI views for the dashboard, workflow editor,
-  history, settings, and Show Mode
+- `Canopy/Transcriber/` — live transcription, audio, speech, cues, Planning Center
+- `Canopy/Models/` — persisted state and data types (devices, automations, settings)
+- `Canopy/Support/` — services that do the work (transfer, conversion, scheduling,
+  monitoring, alerts, OSC/MIDI, email)
+- `Canopy/Views/` — SwiftUI Settings pages and the automation builder
+- `Canopy/RemoteHost/` — screen streaming and input for TailDesk
+- `ChurchKit/` — local Swift package shared with the church website tools
+- `docs/` — current plans; `docs/archive/` holds finished or outdated ones
 
-Built with SwiftUI, uses Sparkle for auto-updates.
+Built with SwiftUI; Sparkle handles updates. `./run.sh` builds and launches a dev
+copy; `release.sh` builds a release.

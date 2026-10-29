@@ -39,15 +39,13 @@ struct DeckListRow: View {
                 Text(deck.ipAddress).font(.canopyCaption).foregroundStyle(.secondary)
             }
             Spacer()
-            if appState.isAdmin {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(.borderless)
-                .help("Device Settings")
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
             }
+            .buttonStyle(.borderless)
+            .help("Device Settings")
         }
         .padding(.vertical, 2)
         .contextMenu {
@@ -86,15 +84,13 @@ struct CloudStoreListRow: View {
                 Text(store.ipAddress).font(.canopyCaption).foregroundStyle(.secondary)
             }
             Spacer()
-            if appState.isAdmin {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(.borderless)
-                .help("Device Settings")
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
             }
+            .buttonStyle(.borderless)
+            .help("Device Settings")
         }
         .padding(.vertical, 2)
         .contextMenu {
@@ -133,15 +129,13 @@ struct LocalFolderListRow: View {
                     .lineLimit(1).truncationMode(.middle)
             }
             Spacer()
-            if appState.isAdmin {
-                Button {
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                }
-                .buttonStyle(.borderless)
-                .help("Device Settings")
+            Button {
+                showingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
             }
+            .buttonStyle(.borderless)
+            .help("Device Settings")
         }
         .padding(.vertical, 2)
         .contextMenu {

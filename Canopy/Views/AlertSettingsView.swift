@@ -87,6 +87,7 @@ struct AlertSettingsView: View {
                         Image(systemName: "trash").foregroundStyle(Color.orange)
                     }
                     .buttonStyle(.borderless)
+                    .help("Remove recipient").accessibilityLabel("Remove \(recipient.name)")
                 }
                 .padding(.vertical, 2)
             }

@@ -241,6 +241,7 @@ struct TranscriberSettingsView: View {
                         let p = NSOpenPanel()
                         p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
                         if p.runModal() == .OK, let u = p.url { model.settings.saveFolder = u.path }
+                                .help("Remove this input").accessibilityLabel("Remove this input")
                     }
                 }
                 Text("A session ends when you stop transcribing, quit, or the schedule’s end time passes. The whole session is kept (Clear only empties the window).")

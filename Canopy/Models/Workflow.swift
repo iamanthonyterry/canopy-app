@@ -1030,6 +1030,11 @@ struct DroppableStep: Decodable {
     }
 }
 
+extension StepKind {
+    /// Steps that erase or delete things start out asking for confirmation, so a new one can't wipe a drive unattended by accident.
+    var confirmsByDefault: Bool { self == .format || self == .cleanup }
+}
+
 extension WorkflowStep: Codable {
     enum CodingKeys: String, CodingKey {
         case id, action, requiresConfirmation, decks

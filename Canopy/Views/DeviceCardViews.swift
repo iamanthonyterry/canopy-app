@@ -71,9 +71,7 @@ struct CloudStoreContentPane: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
-            if appState.isAdmin {
-                runWorkflowMenu
-            }
+            runWorkflowMenu
         }
         .padding()
     }
@@ -129,9 +127,7 @@ struct LocalFolderContentPane: View {
                 .font(.canopyCaption).bold()
                 .foregroundStyle(folder.exists ? Color.green : Color.orange)
                 .lineLimit(1).fixedSize()
-            if appState.isAdmin {
-                runWorkflowMenu
-            }
+            runWorkflowMenu
         }
         .padding()
     }

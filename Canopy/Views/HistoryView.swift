@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct HistoryView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedRun: WorkflowRun?
+    @State private var confirmingClear = false
 
     var body: some View {
         HSplitView {
@@ -16,8 +17,7 @@ struct HistoryView: View {
                     Spacer()
                     if !appState.workflowRunHistory.isEmpty {
                         Button(role: .destructive) {
-                            appState.workflowRunHistory.removeAll()
-                            selectedRun = nil
+                            confirmingClear = true
                         } label: {
                             Label("Clear", systemImage: "trash")
                         }
@@ -47,6 +47,14 @@ struct HistoryView: View {
                 }
             }
             .frame(minWidth: 220, idealWidth: 280, maxWidth: 320)
+            .confirmationDialog("Clear all run history?", isPresented: $confirmingClear, titleVisibility: .visible) {
+                Button("Clear History", role: .destructive) {
+                    appState.workflowRunHistory.removeAll()
+                    selectedRun = nil
+                }
+            } message: {
+                Text("This removes all \(appState.workflowRunHistory.count) recorded runs and can't be undone.")
+            }
 
             // Run detail
             if let run = selectedRun {

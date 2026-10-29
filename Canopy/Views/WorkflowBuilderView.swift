@@ -754,13 +754,13 @@ struct WorkflowBuilderView: View {
     /// Recording) takes the same decks as the step it follows, so it acts
     /// on the decks that step started.
     private func insertSuggestion(_ action: StepAction, after index: Int) {
-        var step = WorkflowStep(action: action)
+        var step = WorkflowStep(action: action, requiresConfirmation: action.kind.confirmsByDefault)
         if step.kind.usesHyperDeck { step.decks = steps[index].decks }
         withAnimation(.snappy) { steps.insert(step, at: index + 1) }
     }
 
     private func insertStep(_ kind: StepKind, at index: Int) {
-        let step = WorkflowStep(action: .defaultAction(for: kind))
+        let step = WorkflowStep(action: .defaultAction(for: kind), requiresConfirmation: kind.confirmsByDefault)
         withAnimation(.snappy) {
             steps.insert(step, at: min(max(index, 0), steps.count))
         }

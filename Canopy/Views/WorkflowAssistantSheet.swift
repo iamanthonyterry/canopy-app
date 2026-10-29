@@ -26,7 +26,7 @@ struct WorkflowAssistantSheet: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Label("Describe a Automation", systemImage: "sparkles")
+                Label("Describe an Automation", systemImage: "sparkles")
                     .font(.canopyTitle2).foregroundStyle(Color.primary)
                 Spacer()
                 Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)

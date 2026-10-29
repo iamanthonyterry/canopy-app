@@ -149,7 +149,7 @@ struct WorkflowsView: View {
             Button {
                 builder = .new
             } label: {
-                Label("Create a Automation", systemImage: "plus")
+                Label("Create an Automation", systemImage: "plus")
             }
             .buttonStyle(.canopyPrimary)
             Spacer()
@@ -213,19 +213,19 @@ struct WorkflowsView: View {
                     builder = .edit(workflow)
                 } label: {
                     Image(systemName: "pencil")
-                }.buttonStyle(.borderless)
+                }.buttonStyle(.borderless).help("Edit").accessibilityLabel("Edit \(workflow.name)")
 
                 Button {
                     appState.duplicateWorkflow(id: workflow.id)
                 } label: {
                     Image(systemName: "doc.on.doc")
-                }.buttonStyle(.borderless)
+                }.buttonStyle(.borderless).help("Duplicate").accessibilityLabel("Duplicate \(workflow.name)")
 
                 Button(role: .destructive) {
                     workflowPendingDelete = workflow
                 } label: {
                     Image(systemName: "trash")
-                }.buttonStyle(.borderless)
+                }.buttonStyle(.borderless).help("Delete").accessibilityLabel("Delete \(workflow.name)")
 
                 Spacer()
 
@@ -318,7 +318,7 @@ private struct WebProgressMenu: View {
                 Toggle("Share automations with this campus's other Macs", isOn: $sync.isEnabled)
                 if sync.isEnabled { Text(SyncStatus.text(sync)) }
                 if let origin = connection.origin {
-                    Link("Open workflow progress on the website", destination: origin.appendingPathComponent("workflows"))
+                    Link("Open automation progress on the website", destination: origin.appendingPathComponent("workflows"))
                 }
             } else {
                 Text("Connect this Mac to your campus to watch runs from a phone or another computer.")

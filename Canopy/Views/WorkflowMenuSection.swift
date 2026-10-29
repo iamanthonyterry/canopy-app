@@ -69,7 +69,7 @@ struct WorkflowMenuSection: View {
             }
         }
 
-        Button(appState.workflows.isEmpty ? "Create a Automation…" : "Automations…") {
+        Button(appState.workflows.isEmpty ? "Create an Automation…" : "Automations…") {
             SettingsTab.workflows.open(with: openWindow)
         }
     }
