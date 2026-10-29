@@ -512,9 +512,41 @@ struct PlanningCenterSection: View {
     }
 }
 
+/// What the transcript window shows: the lines in the chosen language that contain the search text.
+enum TranscriptFilter {
+    static func text(of line: TranscriptLine, language: String) -> String {
+        language.isEmpty ? line.text : (line.translations[language] ?? line.text)
+    }
+
+    static func visible(_ lines: [TranscriptLine], query: String, language: String) -> [TranscriptLine] {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return lines }
+        return lines.filter { text(of: $0, language: language).localizedCaseInsensitiveContains(q) }
+    }
+
+    static let fontRange: ClosedRange<Double> = 11...60
+    static func clamped(_ size: Double) -> Double { min(max(size, fontRange.lowerBound), fontRange.upperBound) }
+}
+
 struct TranscriptView: View {
     @ObservedObject var model: AppModel
     @State private var floating = false
+    @State private var query = ""
+    @State private var searching = false
+    /// Large mode: only the latest lines, big and high-contrast, for a confidence monitor.
+    @State private var large = false
+    @AppStorage("transcript.fontSize") private var fontSize = 13.0
+
+    private var shown: [TranscriptLine] {
+        let all = TranscriptFilter.visible(model.lines, query: query, language: current)
+        return large ? Array(all.suffix(3)) : all
+    }
+
+    private func copyAll() {
+        let text = shown.map { TranscriptFilter.text(of: $0, language: current) }.joined(separator: "\n")
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
 
     private var current: String { model.settings.translateTo.contains(model.transcriptLanguage) ? model.transcriptLanguage : "" }
 
@@ -524,6 +556,16 @@ struct TranscriptView: View {
                 Circle().fill(model.listening ? .red : (model.running ? .yellow : .gray)).frame(width: 8, height: 8)
                 Text(model.status).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 Spacer()
+                Button { fontSize = TranscriptFilter.clamped(fontSize - 2) } label: { Image(systemName: "textformat.size.smaller") }
+                    .buttonStyle(.borderless).help("Smaller text").accessibilityLabel("Smaller text")
+                Button { fontSize = TranscriptFilter.clamped(fontSize + 2) } label: { Image(systemName: "textformat.size.larger") }
+                    .buttonStyle(.borderless).help("Larger text").accessibilityLabel("Larger text")
+                Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass") }
+                    .buttonStyle(.borderless).help("Search the transcript").accessibilityLabel("Search")
+                Button { copyAll() } label: { Image(systemName: "doc.on.doc") }
+                    .buttonStyle(.borderless).help("Copy the lines shown").accessibilityLabel("Copy lines")
+                    .disabled(shown.isEmpty)
+                Toggle("Large", isOn: $large).toggleStyle(.checkbox).font(.caption).help("Show only the latest lines, big, for a confidence monitor")
                 Toggle("Keep on top", isOn: $floating).toggleStyle(.checkbox).font(.caption)
                 Button("Clear") { model.lines.removeAll() }.controlSize(.small)
             }
@@ -532,14 +574,19 @@ struct TranscriptView: View {
                 Text(note).font(.caption).foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 10).padding(.bottom, 4)
             }
+            if searching {
+                TextField("Search", text: $query).textFieldStyle(.roundedBorder).padding(.horizontal, 10).padding(.bottom, 6)
+            }
             Divider()
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 6) {
                         if model.lines.isEmpty {
                             Text("Nothing heard yet").foregroundStyle(.secondary)
+                        } else if shown.isEmpty {
+                            Text("No lines match “\(query)”").foregroundStyle(.secondary)
                         }
-                        ForEach(model.lines) { line in
+                        ForEach(shown) { line in
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     if current.isEmpty {
@@ -554,11 +601,12 @@ struct TranscriptView: View {
                             .id(line.id)
                         }
                     }
+                    .font(.system(size: large ? min(fontSize * 1.8, 90) : fontSize, weight: large ? .semibold : .regular))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                 }
                 .onChange(of: model.lines.count) {
-                    if let last = model.lines.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                    if query.isEmpty, let last = model.lines.last { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
         }

@@ -115,7 +115,12 @@ final class AppModel: ObservableObject {
         didSet { if let w = feedWarning, oldValue == nil { Notifier.post("Transcriber needs attention", w) } }
     }
 
-    var statusTint: NSColor? { feedWarning != nil ? .systemOrange : listening ? .systemRed : (running ? .systemYellow : nil) }
+    var statusTint: NSColor? { Self.tint(feedWarning: feedWarning, listening: listening, running: running) }
+
+    /// The menu bar icon's colour: orange for a warning, red while hearing speech, yellow while waiting, plain when stopped.
+    static func tint(feedWarning: String?, listening: Bool, running: Bool) -> NSColor? {
+        feedWarning != nil ? .systemOrange : listening ? .systemRed : (running ? .systemYellow : nil)
+    }
 
     func channelCount(for input: AudioInput) -> Int {
         let ch = device(for: input)?.channels ?? max(devices.first?.channels ?? 1, 1)
