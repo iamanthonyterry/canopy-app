@@ -2070,7 +2070,8 @@ final class WorkflowEngine: ObservableObject {
                     verification: Self.verificationKey(task.verification),
                     sha256: task.sha256, folderPath: task.destDir.path
                 )
-            }
+            },
+            workflowID:     workflow.id
         )
         appState.workflowRunHistory.insert(run, at: 0)
         if appState.workflowRunHistory.count > 50 {

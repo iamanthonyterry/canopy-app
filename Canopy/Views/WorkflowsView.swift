@@ -25,6 +25,7 @@ struct WorkflowsView: View {
     /// once the sheet has finished dismissing.
     @State private var pendingDraft: Workflow? = nil
     @State private var workflowPendingDelete: Workflow? = nil
+    @State private var reviewing: Workflow? = nil
 
     private var inProgress: [WorkflowRunSession] {
         appState.activeRuns.filter { !$0.isFinished }
@@ -78,6 +79,9 @@ struct WorkflowsView: View {
         }) {
             WorkflowAssistantSheet { pendingDraft = $0 }
         }
+        .sheet(item: $reviewing) { workflow in
+            WorkflowReviewSheet(workflow: workflow)
+        }
         .alert(
             "Delete \"\(workflowPendingDelete?.name ?? "")\"?",
             isPresented: Binding(get: { workflowPendingDelete != nil }, set: { if !$0 { workflowPendingDelete = nil } })
@@ -114,6 +118,18 @@ struct WorkflowsView: View {
     private func headerButtons(iconOnly: Bool) -> some View {
         HStack(spacing: 8) {
             WebProgressMenu()
+            Menu {
+                ForEach(WorkflowTemplate.all) { template in
+                    Button { builder = .draft(template.make()) } label: {
+                        Text(template.name)
+                        Text(template.summary)
+                    }
+                }
+            } label: {
+                AdaptiveLabel(title: "Templates", icon: "square.on.square", iconOnly: iconOnly)
+            }
+            .menuStyle(.borderlessButton).fixedSize()
+            .help("Start from a ready-made automation")
             Button {
                 isDescribing = true
             } label: {
@@ -216,6 +232,12 @@ struct WorkflowsView: View {
                 }.buttonStyle(.borderless).help("Edit").accessibilityLabel("Edit \(workflow.name)")
 
                 Button {
+                    reviewing = workflow
+                } label: {
+                    Image(systemName: "checklist")
+                }.buttonStyle(.borderless).help("Review before running").accessibilityLabel("Review \(workflow.name)")
+
+                Button {
                     appState.duplicateWorkflow(id: workflow.id)
                 } label: {
                     Image(systemName: "doc.on.doc")
@@ -272,7 +294,7 @@ struct WorkflowsView: View {
     }
 
     private func lastRun(for workflow: Workflow) -> WorkflowRun? {
-        appState.workflowRunHistory.first { $0.workflowName == workflow.name }
+        WorkflowRun.latest(for: workflow, in: appState.workflowRunHistory)
     }
 }
 
@@ -506,5 +528,53 @@ private struct StepRunRow: View {
         return s >= 3600
             ? String(format: "%d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
             : String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+// MARK: - Review sheet
+
+/// What an automation will do and what looks wrong with it, before anyone presses Run.
+private struct WorkflowReviewSheet: View {
+    let workflow: Workflow
+    @EnvironmentObject var appState: AppState
+    @ObservedObject private var monitor = ConnectionMonitor.shared
+    @StateObject private var engine = WorkflowEngine.shared
+    @Environment(\.dismiss) private var dismiss
+
+    private var items: [WorkflowReview.Item] {
+        let offline = appState.hyperDecks(for: workflow).filter { monitor.status(for: $0.ipAddress) == .offline }.map(\.name)
+        return WorkflowReview.items(for: workflow, offlineDeckNames: offline)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Review “\(workflow.name)”").font(.canopyTitle2)
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(workflow.steps.enumerated()), id: \.element.id) { i, step in
+                    Label("\(i + 1). \(step.action.shortLabel)\(step.requiresConfirmation ? " (asks first)" : "")", systemImage: step.kind.icon)
+                        .font(.canopySubheadline)
+                }
+            }
+            Divider()
+            if items.isEmpty {
+                Label("Nothing looks wrong.", systemImage: "checkmark.circle.fill").foregroundStyle(Color.green)
+            } else {
+                ForEach(items) { item in
+                    Label(item.text, systemImage: item.severity == .warning ? "exclamationmark.triangle.fill" : "info.circle")
+                        .foregroundStyle(item.severity == .warning ? Color.orange : .secondary)
+                        .font(.canopySubheadline)
+                }
+            }
+            Spacer(minLength: 0)
+            HStack {
+                Spacer()
+                Button("Close") { dismiss() }.buttonStyle(.canopySecondary)
+                Button("Run Now") { dismiss(); Task { await engine.runFromUI(workflow) } }
+                    .buttonStyle(.canopyPrimary)
+                    .disabled(!appState.canRun(workflow) || workflow.steps.isEmpty)
+            }
+        }
+        .padding()
+        .frame(width: 440, height: 380)
     }
 }

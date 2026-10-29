@@ -6,6 +6,19 @@ struct HistoryView: View {
     @EnvironmentObject var appState: AppState
     @State private var selectedRun: WorkflowRun?
     @State private var confirmingClear = false
+    @State private var query = ""
+    @State private var onlyErrors = false
+
+    private var runs: [WorkflowRun] { WorkflowRun.filter(appState.workflowRunHistory, query: query, onlyErrors: onlyErrors) }
+
+    private func exportCSV() {
+        let panel = NSSavePanel()
+        panel.title = "Export Run History"
+        panel.nameFieldStringValue = "Canopy-Run-History.csv"
+        panel.allowedContentTypes = [.commaSeparatedText]
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? WorkflowRun.csv(runs).write(to: url, atomically: true, encoding: .utf8)
+    }
 
     var body: some View {
         HSplitView {
@@ -26,6 +39,16 @@ struct HistoryView: View {
                     }
                 }
                 .padding()
+                if !appState.workflowRunHistory.isEmpty {
+                    HStack {
+                        TextField("Search automations or devices", text: $query).textFieldStyle(.roundedBorder)
+                        Toggle("Errors only", isOn: $onlyErrors).toggleStyle(.checkbox).font(.canopyCaption)
+                        Button { exportCSV() } label: { Image(systemName: "square.and.arrow.up") }
+                            .buttonStyle(.borderless).help("Export the listed runs as CSV").accessibilityLabel("Export as CSV")
+                            .disabled(runs.isEmpty)
+                    }
+                    .padding(.horizontal).padding(.bottom, 8)
+                }
                 Rectangle().fill(Color(nsColor: .separatorColor)).frame(height: 1)
 
                 if appState.workflowRunHistory.isEmpty {
@@ -39,7 +62,7 @@ struct HistoryView: View {
                         Spacer()
                     }
                 } else {
-                    List(appState.workflowRunHistory, selection: $selectedRun) { run in
+                    List(runs, selection: $selectedRun) { run in
                         RunRow(run: run)
                             .tag(run)
                     }

@@ -1304,6 +1304,8 @@ struct WorkflowRun: Identifiable, Codable, Hashable {
     var log: [String]
     /// Absent on runs saved before per-file records existed.
     var fileRecords: [RunFileRecord]? = nil
+    /// Absent on runs saved before the automation's id was kept; those are matched by name.
+    var workflowID: UUID? = nil
 
     var duration: TimeInterval { finishedAt.timeIntervalSince(startedAt) }
     var durationFormatted: String {
