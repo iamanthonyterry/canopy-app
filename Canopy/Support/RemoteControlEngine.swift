@@ -22,7 +22,10 @@ final class RemoteControlEngine: ObservableObject {
 
     private init() {
         // Everything received goes through the bus; this engine is one of its listeners (the HyperDeck mappings).
-        osc.onMessage = { message, _ in ControlBus.shared.dispatch(osc: message) }
+        osc.onMessage = { message, host in
+            guard OSCAccess.allows(host: host) else { return }
+            ControlBus.shared.dispatch(osc: message)
+        }
         midi.onMessage = { message, _ in ControlBus.shared.dispatch(midi: message) }
         ControlBus.shared.onOSC { [weak self] message in self?.handle(osc: message) }
         ControlBus.shared.onMIDI { [weak self] message in self?.handle(midi: message) }

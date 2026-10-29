@@ -1,5 +1,20 @@
 import SwiftUI
 
+/// Limits which computers may send OSC to this Mac.
+struct OSCAllowListField: View {
+    @AppStorage(OSCAccess.storageKey) private var allowed = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("Only accept OSC from (optional)").font(.canopyCaption).foregroundStyle(.secondary)
+            TextField("Only accept OSC from", text: $allowed, prompt: Text("192.168.1.20, 192.168.1."))
+                .labelsHidden().textFieldStyle(.roundedBorder)
+            Text("Addresses or prefixes ending in a dot, separated by commas. Leave empty to accept OSC from any computer on the network.")
+                .font(.canopyCaption2).foregroundStyle(.tertiary)
+        }
+    }
+}
+
 struct RemoteControlSettingsView: View {
     @EnvironmentObject var appState: AppState
     @ObservedObject private var osc = RemoteControlEngine.shared.osc
@@ -58,6 +73,8 @@ private extension RemoteControlSettingsView {
                         .frame(width: 80)
                     statusBadge(isActive: osc.isListening, error: osc.lastError)
                 }
+
+                OSCAllowListField()
 
                 if !osc.receivedMessages.isEmpty {
                     DisclosureGroup("Recent Messages (\(osc.receivedMessages.count))") {

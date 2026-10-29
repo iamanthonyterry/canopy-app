@@ -49,6 +49,8 @@ struct CanopyApp: App {
         SchedulerService.shared.sync()
         ConnectionMonitor.shared.start()
         AlertingService.shared.start()
+        AutomationAttention.shared.start()
+        HealthSummaryService.shared.start()
         WorkflowRunPublisher.shared.start()
         WorkflowSyncService.shared.start()
         RemoteControlEngine.shared.applySettings()

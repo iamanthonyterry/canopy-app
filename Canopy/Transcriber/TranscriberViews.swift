@@ -6,6 +6,7 @@ import ChurchKitCore
 struct MenuLabel: View {
     let tint: NSColor?
     @ObservedObject var model: AppModel
+    @ObservedObject private var attention = AutomationAttention.shared
     @Environment(\.openWindow) private var openWindow
 
     /// A Mac that still needs the website and an audio input is shown the Set Up window once, at launch.
@@ -25,7 +26,7 @@ struct MenuLabel: View {
     var body: some View {
         // Menu bar icons are templates (always monochrome), so a colored mic has to be a pre-tinted, non-template image.
         Group {
-            if let tint, let img = Self.mic(tint) {
+            if let tint = tint ?? (attention.message != nil ? NSColor.systemOrange : nil), let img = Self.mic(tint) {
                 Image(nsImage: img)
             } else {
                 Image(systemName: "mic.fill")
@@ -301,6 +302,7 @@ struct TranscriberSettingsView: View {
                 Text(model.commandModelNote ?? "An input that only triggers cues gets a small speech model of its own, so a cue fires about a second sooner and never waits for the transcript. It is a one-time 150 MB download; without internet the main model is used.")
                     .font(.caption).foregroundStyle(.secondary)
                 Field("Let other devices start and stop transcribing (OSC port)", width: 80) { TextField("Listen for OSC on port", value: $model.settings.oscInPort, format: .number.grouping(.never), prompt: Text("off")) }
+                OSCAllowListField()
                 Text("0 is off. Any device on your network can then send /transcriber/start, /stop, /clear, /save, /cues/on and /cues/off to this Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 Field("Wake word (optional)") { TextField("Wake word", text: $model.settings.oscWakeWord, prompt: Text("booth")) }
@@ -388,7 +390,13 @@ private struct AppliesSettingsOnLeave: ViewModifier {
             .onAppear { original = model.settings }
             .onDisappear {
                 guard let original, original != model.settings else { return }
-                model.apply()
+                guard model.running else { model.apply(); return }
+                let alert = NSAlert()
+                alert.messageText = "Restart the live transcript to apply your changes?"
+                alert.informativeText = "Applying restarts listening for a moment. Choose Later to keep the changes and use them the next time transcribing starts."
+                alert.addButton(withTitle: "Restart Now")
+                alert.addButton(withTitle: "Later")
+                if alert.runModal() == .alertFirstButtonReturn { model.apply() } else { model.saveSettings() }
             }
     }
 }

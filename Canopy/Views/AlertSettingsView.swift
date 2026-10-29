@@ -20,6 +20,13 @@ struct AlertSettingsView: View {
                     .font(.canopyCaption2)
                     .foregroundStyle(.tertiary)
 
+                Toggle("After a restart, resume interrupted automations that are safe to repeat", isOn: settings.autoResumeInterrupted)
+                Text("Offloads, proxies and copies pick up where they stopped. Anything with Format, Cleanup or Control HyperDeck still waits for you in the menu.")
+                    .font(.canopyCaption2).foregroundStyle(.tertiary)
+                Toggle("Email a daily summary at 7 a.m.", isOn: settings.dailySummary)
+                Text("Goes to the people listed under Also Email: last day's runs, devices that are down, anything interrupted. Needs the website connection.")
+                    .font(.canopyCaption2).foregroundStyle(.tertiary)
+
                 if settings.wrappedValue.isEnabled {
                     thresholdRow
                     Divider()

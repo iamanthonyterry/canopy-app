@@ -16,7 +16,15 @@ struct WorkflowMenuSection: View {
         appState.workflows.filter { !$0.steps.isEmpty }.sorted { $0.sortOrder < $1.sortOrder }
     }
 
+    @ObservedObject private var attention = AutomationAttention.shared
+
     var body: some View {
+        if let warning = attention.message {
+            Label(warning, systemImage: "exclamationmark.triangle.fill")
+            if checkpoints.interrupted.isEmpty {
+                Button("Dismiss Warning", systemImage: "xmark") { attention.acknowledge() }
+            }
+        }
         // One line per run in progress, since several can be going at once.
         if inProgress.isEmpty {
             if let errored = appState.activeRuns.first(where: { $0.mountError != nil }) {

@@ -18,7 +18,10 @@ final class ControlBus: ObservableObject {
     private let secondary = OSCListenerService()
 
     private init() {
-        secondary.onMessage = { [weak self] message, _ in self?.dispatch(osc: message) }
+        secondary.onMessage = { [weak self] message, host in
+            guard OSCAccess.allows(host: host) else { return }
+            self?.dispatch(osc: message)
+        }
     }
 
     /// Whether the extra listener is open, or why not (shown next to the port in Settings).
