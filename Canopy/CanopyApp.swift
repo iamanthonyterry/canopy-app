@@ -60,7 +60,7 @@ struct CanopyApp: App {
         MenuBarExtra {
             MenuContent(model: model)
         } label: {
-            MenuLabel(tint: model.statusTint)
+            MenuLabel(tint: model.statusTint, model: model)
         }
         .menuBarExtraStyle(.menu)
 
@@ -69,6 +69,11 @@ struct CanopyApp: App {
         }
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 380, height: 260)
+
+        Window("Set up Canopy", id: "setup") {
+            SetupChecklistView(model: model)
+        }
+        .defaultSize(width: 520, height: 600)
 
         Window("Settings", id: "settings") {
             SettingsRoot(model: model)

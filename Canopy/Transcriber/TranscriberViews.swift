@@ -5,7 +5,15 @@ import ChurchKitCore
 
 struct MenuLabel: View {
     let tint: NSColor?
+    @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
+
+    /// A Mac that still needs the website and an audio input is shown the Set Up window once, at launch.
+    private func openSetupIfNeeded() {
+        guard !FileTest.isSafeMode, SetupProgress.claimAutoOpen(model: model) else { return }
+        openWindow(id: "setup")
+        NSApp.activate(ignoringOtherApps: true)
+    }
 
     /// `--ui-preview --tab=devices` opens Settings on that page at launch, for looking at it.
     private func openPreviewWindow() {
@@ -23,7 +31,7 @@ struct MenuLabel: View {
                 Image(systemName: "mic.fill")
             }
         }
-        .onAppear(perform: openPreviewWindow)
+        .onAppear { openPreviewWindow(); openSetupIfNeeded() }
     }
 
     private static func mic(_ color: NSColor) -> NSImage? {
@@ -47,6 +55,14 @@ struct MenuContent: View {
     var body: some View {
         Text(model.status)
         if let w = model.feedWarning { Text("⚠ \(w)") }
+        let setup = SetupProgress.state(model: model)
+        if SetupProgress.menuShouldOffer(setup, dismissed: SetupProgress.isDismissed) {
+            Button("Finish Setup (\(setup.doneCount) of \(SetupState.total))…", systemImage: "checklist") {
+                openWindow(id: "setup")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            Divider()
+        }
         Text(model.lastText.isEmpty ? "(nothing heard yet)" : "“\(model.lastText.prefix(70))\(model.lastText.count > 70 ? "…" : "")”")
         Divider()
         Button(model.running ? "Stop transcribing" : "Start transcribing") { model.toggle() }
