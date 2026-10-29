@@ -897,7 +897,7 @@ struct WorkflowStepConfigSheet: View {
     private var notifyFields: some View {
         Group {
             if !CampusConnection.shared.isConnected {
-                Label("Not connected to a campus — this step won't be able to send email. Connect in Settings → Transcription.", systemImage: "exclamationmark.triangle.fill")
+                Label("Not connected to a campus — this step won't be able to send email. Connect in Settings → Connections.", systemImage: "exclamationmark.triangle.fill")
                     .font(.canopyCallout).foregroundStyle(.orange)
             }
 

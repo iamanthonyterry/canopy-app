@@ -18,7 +18,8 @@ enum PreviewRender {
             ("workflows", AnyView(WorkflowsView())),
             ("history", AnyView(HistoryView())),
             ("devices", AnyView(DevicesSettingsView())),
-            ("more", AnyView(MoreSettingsView())),
+            ("general", AnyView(GeneralSettingsView(model: model))),
+            ("connections", AnyView(ConnectionsView(model: model))),
             ("tabs", AnyView(SettingsRoot(model: model))),
             // The menu itself is drawn by macOS, so this shows its contents in a plain column.
             ("menu", AnyView(VStack(alignment: .leading, spacing: 6) { WorkflowMenuSection() }.padding(14).frame(width: 340).background(Color(nsColor: .windowBackgroundColor)))),

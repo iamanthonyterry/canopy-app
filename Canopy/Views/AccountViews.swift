@@ -2,10 +2,10 @@ import SwiftUI
 
 // MARK: - The website connection
 // Canopy talks to the church's website with one thing: the campus key, set when this Mac is connected to a campus
-// (Settings → Transcription → Website). It covers the live transcript, device jobs, workflow progress, the shared workflow
+// (Settings → Connections → Church Landing Page). It covers the live transcript, device jobs, workflow progress, the shared workflow
 // list and email. There is no separate person sign-in. This card shows what the connection is being used for.
 
-/// Settings → More: what the campus connection covers, and switches for sharing progress and syncing workflows.
+/// Settings → Connections: what the campus connection covers, and switches for sharing progress and syncing workflows.
 struct WebsiteCard: View {
     @ObservedObject private var connection = CampusConnection.shared
     @ObservedObject private var sync = WorkflowSyncService.shared

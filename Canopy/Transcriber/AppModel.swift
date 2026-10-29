@@ -21,7 +21,7 @@ final class AppModel: ObservableObject {
     private var restarting = false
     @Published var running = false
     @Published var listening = false
-    private var pushingToSite = true  // false between services when a schedule is on: only OSC inputs listen
+    private var pushingToSite = true  // true while the website is being sent the transcript
     @Published var devices: [InputDevice] = []
     @Published var launchAtLogin = SMAppService.mainApp.status == .enabled
     /// Set by the updater when an update is downloaded and waiting to relaunch the app.
@@ -277,12 +277,12 @@ final class AppModel: ObservableObject {
 
     // MARK: Planning Center
 
-    /// Picks up a saved sign-in, then keeps the service times fresh while Planning Center scheduling is on.
+    /// Picks up a saved sign-in, then keeps the plan's names fresh while they are being added to the vocabulary.
     private func pcoStartup() async {
         pcoSignedIn = await pco.signedIn
         if pcoSignedIn { await loadPCOTypes() }
         while !Task.isCancelled {
-            if settings.pcoOn && pcoSignedIn { await refreshPCOTimes() }
+            if settings.pcoTermsOn && pcoSignedIn { await refreshPCOTerms() }
             try? await Task.sleep(for: .seconds(30 * 60))
         }
     }
@@ -307,10 +307,8 @@ final class AppModel: ObservableObject {
             await pco.signOut()
             pcoSignedIn = false
             pcoTypes = []
-            settings.pcoOn = false  // back to the manual times
             settings.pcoServiceTypeID = nil
             settings.pcoServiceTypeName = ""
-            settings.pcoTimes = []
             settings.pcoTerms = []
             saveSettings()
         }
@@ -329,18 +327,16 @@ final class AppModel: ObservableObject {
     func selectPCOType(_ id: String?) {
         settings.pcoServiceTypeID = id
         settings.pcoServiceTypeName = pcoTypes.first { $0.id == id }?.name ?? ""
-        settings.pcoTimes = []
         settings.pcoTerms = []
         saveSettings()
-        Task { await refreshPCOTimes() }
+        Task { await refreshPCOTerms() }
     }
 
-    func refreshPCOTimes() async {
+    func refreshPCOTerms() async {
         guard let id = settings.pcoServiceTypeID else { return }
         pcoBusy = true
         defer { pcoBusy = false }
         do {
-            settings.pcoTimes = try await pco.serviceTimes(typeID: id)  // the cached times stay if this fails
             if settings.pcoTermsOn { settings.pcoTerms = try await pco.planTerms(typeID: id) }
             pcoError = nil
             saveSettings()
@@ -790,44 +786,30 @@ final class AppModel: ObservableObject {
             }
         }
 
-        // The schedule gates the website only: inputs that trigger OSC keep listening between services.
-        var sessionOpen = !settings.scheduleOn || Schedule.inWindow(settings)
+        pushingToSite = true
         while !Task.isCancelled {
-            let inService = !settings.scheduleOn || Schedule.inWindow(settings)
-            if inService && !sessionOpen {  // a new window is a new transcript
-                beginSession()
-                await sendResetIfNeeded(sender)
-                sessionOpen = true
-            }
-            pushingToSite = inService
-            let active = settings.inputs.filter { inService || $0.triggerOSC }
+            let active = settings.inputs
             if active.isEmpty {
-                status = "Waiting for the schedule"
-                while !Task.isCancelled && !(settings.scheduleOn ? Schedule.inWindow(settings) : true) { try? await Task.sleep(for: .seconds(1)) }
+                status = "Waiting for an audio input"
+                try? await Task.sleep(for: .seconds(1))
                 continue
             }
-            if await listenUntilDone(phraseQueue, commands: commandQueue, partials: partials, inputs: active, inService: inService) == false { return }
-            if inService && settings.scheduleOn && !Schedule.inWindow(settings) && !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(4))  // let the last phrase finish transcribing
-                if let saved = endSession() { status = "Saved \(saved.lastPathComponent)" }
-                sessionOpen = false
-                pushingToSite = false
-            }
+            if await listenUntilDone(phraseQueue, commands: commandQueue, partials: partials, inputs: active) == false { return }
         }
     }
 
-    /// Listens on every input until stopped, the schedule window ends, or the audio setup changes. Returns false on a fatal error.
-    private func listenUntilDone(_ sink: PhraseQueue, commands: PhraseQueue, partials: PartialSlot, inputs: [AudioInput], inService: Bool) async -> Bool {
+    /// Listens on every input until stopped or the audio setup changes. Returns false on a fatal error.
+    private func listenUntilDone(_ sink: PhraseQueue, commands: PhraseQueue, partials: PartialSlot, inputs: [AudioInput]) async -> Bool {
         let commandsFast = commandsFast
         let minDb = settings.minDb
         let interrupted = Interrupt()
         let meterID = meterInput.id
         let reporter = LevelReporter { db in Task { @MainActor in self.levelDb = db } }
-        let recorder = inService ? sessionRecorder() : nil  // records the input that feeds the website
-        let watch = inService && settings.inputs.contains(where: { $0.sendToSite }) ? FeedWatch(minDb: minDb) : nil
+        let recorder = sessionRecorder()  // records the input that feeds the website
+        let watch = settings.inputs.contains(where: { $0.sendToSite }) ? FeedWatch(minDb: minDb) : nil
         var segmenters: [(Segmenter, DispatchQueue, AudioInput)] = []
         // Drafts come from one input only, the first that talks to the website: several would overwrite each other.
-        let draftInput = inService && settings.showPartials ? inputs.first(where: { $0.sendToSite && !$0.commandsOnly && !isMissing($0) })?.id : nil
+        let draftInput = settings.showPartials ? inputs.first(where: { $0.sendToSite && !$0.commandsOnly && !isMissing($0) })?.id : nil
         let draftClock = PartialClock()
         captures = [:]
         // An input whose device is unplugged waits for it; it never falls back to another microphone.
@@ -866,7 +848,7 @@ final class AppModel: ObservableObject {
             captures[input.id] = capture
             segmenters.append((segmenter, queue, input))
         }
-        status = segmenters.isEmpty ? "Waiting for the audio input" + missingNote : (inService ? "Listening" : "Listening for OSC only") + missingNote
+        status = segmenters.isEmpty ? "Waiting for the audio input" + missingNote : "Listening" + missingNote
         listening = !segmenters.isEmpty
         var seconds = 0
         // A Mac waking from sleep often leaves the interface's stream dead without announcing it.
@@ -874,7 +856,7 @@ final class AppModel: ObservableObject {
             interrupted.flag = true
         }
         defer { NSWorkspace.shared.notificationCenter.removeObserver(wakeObserver) }
-        while !Task.isCancelled && !interrupted.flag && (!settings.scheduleOn || Schedule.inWindow(settings)) == inService {
+        while !Task.isCancelled && !interrupted.flag {
             try? await Task.sleep(for: .seconds(1))
             seconds += 1
             if seconds >= 5, captures.values.contains(where: { $0.silentFor() > 5 }) { interrupted.flag = true }  // listed, but no audio arriving

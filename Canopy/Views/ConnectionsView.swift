@@ -2,8 +2,9 @@ import Combine
 import AppKit
 import SwiftUI
 
-/// Settings → Connections: everything Canopy connects to, in one place. Each card shows whether it is connected and
-/// has the sign-in or switch for it. The details (service types, devices, alerts) stay on their own pages.
+/// Settings → Connections: everything Canopy signs in to or talks to, and what it listens for, in one place:
+/// the website (and what it carries: sync, progress, email), Planning Center, Remote Host, OSC/MIDI control, live
+/// alerts and on-device AI. Sign-in happens only here; other pages show a status and link back.
 struct ConnectionsView: View {
     @ObservedObject var model: AppModel
 
@@ -11,9 +12,13 @@ struct ConnectionsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 WebsiteConnectionCard(model: model)
+                if CampusConnection.shared.isConnected || !model.token.isEmpty { WebsiteCard() }
+                EmailNotificationsView()
                 PlanningCenterConnectionCard(model: model)
                 RemoteHostCard()
-                OtherConnectionsCard()
+                RemoteControlSettingsView()
+                AlertSettingsView()
+                AIModelSettingsView()
                 Spacer(minLength: 24)
             }
             .padding(.vertical)
@@ -74,7 +79,6 @@ private struct WebsiteConnectionCard: View {
                 }
                 if model.running { Text("Stop transcribing to change where the transcript is sent.").font(.canopyCaption).foregroundStyle(.secondary) }
                 if let e = model.signInError { Text(e).font(.canopyCaption).foregroundStyle(.orange) }
-                Text("What's shared and synced is under Settings → More → Website.").font(.canopyCaption).foregroundStyle(.secondary)
             }
             .padding(.top, 6)
         }
@@ -163,38 +167,5 @@ private struct RemoteHostCard: View {
                 onFinish: { host.setEnabled(true); showSetup = false },
                 onCancel: { showSetup = false })
         }
-    }
-}
-
-// MARK: Everything else
-
-/// The other things Canopy talks to. Each one is set up on its own page; this just points to it.
-private struct OtherConnectionsCard: View {
-    @AppStorage(SettingsTab.storageKey) private var tab = SettingsTab.connections.rawValue
-
-    var body: some View {
-        GroupBox(label: Label("Other connections", systemImage: "point.3.connected.trianglepath.dotted")) {
-            VStack(alignment: .leading, spacing: 8) {
-                link("HyperDecks, cloud stores and folders", icon: "externaldrive.connected.to.line.below", to: .devices)
-                link("Email notifications", icon: "envelope", to: .more)
-                link("OSC and MIDI remote control", icon: "slider.horizontal.3", to: .more)
-                link("AI models", icon: "sparkles", to: .more)
-            }
-            .padding(.top, 8)
-        }
-        .padding(.horizontal)
-    }
-
-    private func link(_ title: String, icon: String, to dest: SettingsTab) -> some View {
-        Button { tab = dest.rawValue } label: {
-            HStack {
-                Image(systemName: icon).frame(width: 22)
-                Text(title)
-                Spacer()
-                Image(systemName: "chevron.right").foregroundStyle(.secondary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }

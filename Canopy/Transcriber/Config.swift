@@ -14,8 +14,6 @@ nonisolated struct Settings: Codable, Equatable {
     var showPartials = false       // send the words of a phrase still being spoken as a draft line (the website must support it)
     var minDb = -50.0
     var silenceWarnMinutes = 0     // warn when the website's input has been silent this long during a service (0 = off)
-    var scheduleOn = false
-    var scheduleWindows = [ScheduleWindow()]  // listens during any of these
     var saveCopy = false               // write the whole transcript to saveFolder when a session ends
     var saveFolder = ""
     var saveSubtitles = false          // also write .srt and .vtt subtitle files (one pair per language)
@@ -23,12 +21,8 @@ nonisolated struct Settings: Codable, Equatable {
     var translateTo: [String] = []  // language codes translated on-device (shown locally, optionally sent)
     var sendTranslations = false    // also send the translations to the website for viewers to pick from
     var autoStart = true           // start listening when the app opens (survives updates and reboots)
-    var pcoOn = false              // schedule from Planning Center service times instead of the manual windows
     var pcoServiceTypeID: String?
     var pcoServiceTypeName = ""
-    var pcoLeadMinutes = 15        // start listening this long before a service time
-    var pcoLengthMinutes = 90      // and keep listening this long after it starts
-    var pcoTimes: [Date] = []      // upcoming service start times (cached so it still works offline)
     var pcoTermsOn = true          // also tell Whisper the plan's speakers, series and title
     var pcoTerms: [String] = []    // those names for today's or the next plan (cached so it still works offline)
     var oscHost = "127.0.0.1"      // where OSC messages go (QLab, ProPresenter, a lighting desk…)
@@ -44,7 +38,7 @@ nonisolated struct Settings: Codable, Equatable {
 nonisolated extension Settings {
     /// What Whisper is told to expect: the typed names and terms first, then Planning Center's.
     var promptVocabulary: String {
-        pcoOn && pcoTermsOn ? ([vocabulary] + pcoTerms).joined(separator: "\n") : vocabulary
+        pcoTermsOn ? ([vocabulary] + pcoTerms).joined(separator: "\n") : vocabulary
     }
 }
 
@@ -63,16 +57,7 @@ nonisolated struct AudioInput: Codable, Equatable, Identifiable, Sendable {
     var triggerOSC = false    // phrases heard here fire the OSC rules
 }
 
-/// One recurring listening window: chosen weekdays between a start and end time (minutes after midnight).
-nonisolated struct ScheduleWindow: Codable, Equatable, Identifiable {
-    var id = UUID()
-    var days: Set<Int> = [1]  // Calendar weekdays, 1 = Sunday (repeats weekly)
-    var date: Date?           // set = a one-off on that calendar day instead of repeating
-    var start = 8 * 60
-    var end = 12 * 60 + 30
-}
-
-nonisolated private enum LegacyKeys: String, CodingKey { case scheduleDays, scheduleStart, scheduleEnd, device, channel, oscDevices }
+nonisolated private enum LegacyKeys: String, CodingKey { case device, channel, oscDevices }
 
 nonisolated extension Settings {
     /// Missing keys (settings saved by an older version) fall back to defaults instead of resetting everything.
@@ -96,15 +81,6 @@ nonisolated extension Settings {
         showPartials = try c.decodeIfPresent(Bool.self, forKey: .showPartials) ?? d.showPartials
         minDb = try c.decodeIfPresent(Double.self, forKey: .minDb) ?? d.minDb
         silenceWarnMinutes = try c.decodeIfPresent(Int.self, forKey: .silenceWarnMinutes) ?? d.silenceWarnMinutes
-        scheduleOn = try c.decodeIfPresent(Bool.self, forKey: .scheduleOn) ?? d.scheduleOn
-        if let w = try c.decodeIfPresent([ScheduleWindow].self, forKey: .scheduleWindows) {
-            scheduleWindows = w
-        } else if let old = try? decoder.container(keyedBy: LegacyKeys.self), let days = try old.decodeIfPresent(Set<Int>.self, forKey: .scheduleDays) {
-            // 2.1 saved a single window
-            scheduleWindows = [ScheduleWindow(days: days,
-                                              start: try old.decodeIfPresent(Int.self, forKey: .scheduleStart) ?? 480,
-                                              end: try old.decodeIfPresent(Int.self, forKey: .scheduleEnd) ?? 750)]
-        }
         saveCopy = try c.decodeIfPresent(Bool.self, forKey: .saveCopy) ?? d.saveCopy
         saveFolder = try c.decodeIfPresent(String.self, forKey: .saveFolder) ?? d.saveFolder
         saveSubtitles = try c.decodeIfPresent(Bool.self, forKey: .saveSubtitles) ?? d.saveSubtitles
@@ -112,12 +88,8 @@ nonisolated extension Settings {
         translateTo = try c.decodeIfPresent([String].self, forKey: .translateTo) ?? d.translateTo
         sendTranslations = try c.decodeIfPresent(Bool.self, forKey: .sendTranslations) ?? d.sendTranslations
         autoStart = try c.decodeIfPresent(Bool.self, forKey: .autoStart) ?? d.autoStart
-        pcoOn = try c.decodeIfPresent(Bool.self, forKey: .pcoOn) ?? d.pcoOn
         pcoServiceTypeID = try c.decodeIfPresent(String.self, forKey: .pcoServiceTypeID)
         pcoServiceTypeName = try c.decodeIfPresent(String.self, forKey: .pcoServiceTypeName) ?? d.pcoServiceTypeName
-        pcoLeadMinutes = try c.decodeIfPresent(Int.self, forKey: .pcoLeadMinutes) ?? d.pcoLeadMinutes
-        pcoLengthMinutes = try c.decodeIfPresent(Int.self, forKey: .pcoLengthMinutes) ?? d.pcoLengthMinutes
-        pcoTimes = try c.decodeIfPresent([Date].self, forKey: .pcoTimes) ?? d.pcoTimes
         pcoTermsOn = try c.decodeIfPresent(Bool.self, forKey: .pcoTermsOn) ?? d.pcoTermsOn
         pcoTerms = try c.decodeIfPresent([String].self, forKey: .pcoTerms) ?? d.pcoTerms
         oscHost = try c.decodeIfPresent(String.self, forKey: .oscHost) ?? d.oscHost
@@ -184,7 +156,6 @@ nonisolated enum SettingsStore {
             s.url = j["url"] as? String ?? s.url
             s.inputs = [AudioInput(device: j["device"] as? String, channel: j["channel"] as? Int ?? 1)]
             s.minDb = j["min_db"] as? Double ?? s.minDb
-            s.scheduleOn = j["schedule_on"] as? Bool ?? s.scheduleOn
             token = j["token"] as? String ?? ""
         }
         return (s, token)

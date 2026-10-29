@@ -52,9 +52,10 @@ struct MenuContent: View {
     @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
 
+    /// Top to bottom: what is happening now, then what you do while live (transcribe, automations, transcript),
+    /// then where to go for the rest (Settings pages), then the app itself.
     var body: some View {
-        Text(model.status)
-        if let w = model.feedWarning { Text("⚠ \(w)") }
+        // Status
         let setup = SetupProgress.state(model: model)
         if SetupProgress.menuShouldOffer(setup, dismissed: SetupProgress.isDismissed) {
             Button("Finish Setup (\(setup.doneCount) of \(SetupState.total))…", systemImage: "checklist") {
@@ -63,67 +64,87 @@ struct MenuContent: View {
             }
             Divider()
         }
+        Text(model.status)
+        if let w = model.feedWarning { Text("⚠ \(w)") }
         Text(model.lastText.isEmpty ? "(nothing heard yet)" : "“\(model.lastText.prefix(70))\(model.lastText.count > 70 ? "…" : "")”")
         Divider()
-        Button(model.running ? "Stop transcribing" : "Start transcribing") { model.toggle() }
-        Divider()
-        ForEach($model.settings.inputs) { $input in
-            Menu(model.inputTitle(input)) {
-                InputPickers(model: model, input: $input)
+
+        // Transcription
+        Button(model.running ? "Stop Transcribing" : "Start Transcribing", systemImage: model.running ? "stop.fill" : "mic.fill") { model.toggle() }
+        Menu("Audio Inputs", systemImage: "waveform") {
+            ForEach($model.settings.inputs) { $input in
+                Menu(model.inputTitle(input)) {
+                    InputPickers(model: model, input: $input)
+                }
             }
-            .disabled(model.running)
         }
+        .disabled(model.running)
         if model.hasVoiceCues {
             // saved without apply(): switching cues off must not interrupt the audio
-            Toggle("Voice cues", isOn: Binding(get: { model.settings.oscOn }, set: { model.settings.oscOn = $0; model.saveSettings() }))
-            Menu("Recent cues") {
+            Toggle("Voice Cues", isOn: Binding(get: { model.settings.oscOn }, set: { model.settings.oscOn = $0; model.saveSettings() }))
+            Menu("Recent Cues") {
                 if model.cueLog.isEmpty { Text("None heard yet") }
                 ForEach(model.cueLog.prefix(12)) { Text(CueRow.summary($0)) }
             }
         }
-        if model.settings.scheduleOn {
-            Toggle("Only \(Schedule.summary(model.settings))", isOn: Binding(get: { model.settings.scheduleOn }, set: { model.settings.scheduleOn = $0; model.apply() }))
-        }
         Divider()
+
+        // Automations
         WorkflowMenuSection()
         Divider()
-        Button("Show transcript") {
-            model.transcriptLanguage = ""
-            openWindow(id: "transcript")
-            NSApp.activate(ignoringOtherApps: true)
-        }
-        if !model.settings.translateTo.isEmpty {
-            Menu("View translation") {
-                ForEach(model.settings.translateTo, id: \.self) { code in
-                    Button(model.languages.first { $0.code == code }?.name ?? code) {
-                        model.transcriptLanguage = code
-                        openWindow(id: "transcript")
-                        NSApp.activate(ignoringOtherApps: true)
+
+        // Transcript
+        Menu("Transcript", systemImage: "text.bubble") {
+            Button("Show Transcript") {
+                model.transcriptLanguage = ""
+                openWindow(id: "transcript")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+            if !model.settings.translateTo.isEmpty {
+                Menu("View Translation") {
+                    ForEach(model.settings.translateTo, id: \.self) { code in
+                        Button(model.languages.first { $0.code == code }?.name ?? code) {
+                            model.transcriptLanguage = code
+                            openWindow(id: "transcript")
+                            NSApp.activate(ignoringOtherApps: true)
+                        }
                     }
                 }
             }
+            Button("Save Transcript Now") {
+                if !model.settings.saveFolder.isEmpty, model.saveTranscript(to: URL(fileURLWithPath: model.settings.saveFolder)) != nil { return }
+                let p = NSOpenPanel()
+                p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
+                p.prompt = "Save Here"
+                NSApp.activate(ignoringOtherApps: true)
+                if p.runModal() == .OK, let u = p.url { model.saveTranscript(to: u) }
+            }
+            .disabled(model.sessionLog.isEmpty)
+            Button("Open Live Page") { if let u = model.liveURL() { NSWorkspace.shared.open(u) } }
         }
-        Button("Save transcript now") {
-            if !model.settings.saveFolder.isEmpty, model.saveTranscript(to: URL(fileURLWithPath: model.settings.saveFolder)) != nil { return }
-            let p = NSOpenPanel()
-            p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
-            p.prompt = "Save Here"
-            NSApp.activate(ignoringOtherApps: true)
-            if p.runModal() == .OK, let u = p.url { model.saveTranscript(to: u) }
-        }
-        .disabled(model.sessionLog.isEmpty)
-        Button("Open live page") { if let u = model.liveURL() { NSWorkspace.shared.open(u) } }
-        Button("Settings…") { SettingsTab.transcription.open(with: openWindow) }
+        Divider()
+
+        // Settings pages
+        Button("Devices…", systemImage: "externaldrive.connected.to.line.below") { SettingsTab.devices.open(with: openWindow) }
+        Button(model.token.isEmpty ? "Connect to Website…" : "Connections…", systemImage: "link") { SettingsTab.connections.open(with: openWindow) }
+        Button("Settings…", systemImage: "gearshape") { SettingsTab.transcription.open(with: openWindow) }
             .keyboardShortcut(",")
         Divider()
-        Text("Version \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+
+        // The app
         if let install = model.pendingUpdate {
             Button("Restart to Update") { model.stop(); install() }
         } else {
             Button("Check for Updates…") { model.updates.checkForUpdates() }
         }
-        Divider()
-        Button("Quit") { model.stop(); NSApp.terminate(nil) }
+        Text("Canopy \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev")")
+        Button("Quit Canopy") {
+            model.stop()
+            NSApp.terminate(nil)
+            // Something (an update install, a stuck service) can leave terminate() waiting forever; don't let Quit do nothing.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { exit(0) }
+        }
+            .keyboardShortcut("q")
     }
 }
 
@@ -175,54 +196,10 @@ struct InputPickers: View {
 
 struct TranscriberSettingsView: View {
     @ObservedObject var model: AppModel
+    @Environment(\.openWindow) private var openWindow
 
     var body: some View {
         Form {
-            Section("Website") {
-                LabeledContent("Sending to") {
-                    Text(model.token.isEmpty ? "Not connected" : (model.settings.connectedTo.isEmpty ? "A campus (key entered by hand)" : model.settings.connectedTo))
-                        .foregroundStyle(model.token.isEmpty ? .secondary : .primary)
-                }
-                HStack {
-                    Button(model.token.isEmpty ? "Sign in with website…" : "Change campus…") { model.signInWithWebsite() }
-                        .disabled(model.signInBusy || model.running)
-                    if model.signInBusy {
-                        ProgressView().controlSize(.small)
-                        Text("Finish in your browser").font(.caption).foregroundStyle(.secondary)
-                        Button("Cancel") { model.cancelSignIn() }
-                    }
-                    Spacer()
-                    if !model.token.isEmpty && !model.signInBusy { Button("Disconnect", role: .destructive) { model.disconnect() }.disabled(model.running) }
-                }
-                if model.running { StopToChange("Stop transcribing to change where the transcript is sent.") }
-                if let e = model.signInError { Text(e).font(.caption).foregroundStyle(.orange) }
-                Text("Sign in with the same email as the website’s admin, then pick the campus this Mac’s transcript goes to.")
-                    .font(.caption).foregroundStyle(.secondary)
-                DisclosureGroup("Advanced") {
-                    Field("Transcript address") { TextField("Transcript address", text: $model.settings.url, prompt: Text("https://example.com/api/transcript")) }
-                        .disabled(model.running)
-                    Field("Campus key") { SecureField("Campus key", text: $model.token, prompt: Text("Paste the key here")) }
-                        .disabled(model.running)
-                    Text("Only needed to point at a different site or to paste a campus key by hand (from the campus’s page in the website’s admin).")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Section("Behavior") {
-                Toggle("Start listening when the app opens", isOn: $model.settings.autoStart)
-                Toggle("Open at login", isOn: Binding(get: { model.launchAtLogin }, set: { model.setLaunchAtLogin($0) }))
-            }
-            Section("Start and stop") {
-                Text("Transcription now starts from an automation. Add a Live Transcription step to an automation and give it a Daily or Planning Center Service trigger, and it will start (and stop) the transcript for you.")
-                    .font(.caption).foregroundStyle(.secondary)
-                if model.settings.scheduleOn {
-                    Toggle("Also keep the old schedule on (\(Schedule.summary(model.settings)))", isOn: $model.settings.scheduleOn)
-                    Text("This schedule from before automations still limits when the app sends to the website. Turn it off once an automation takes over.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Section("Planning Center") {
-                PlanningCenterSection(model: model)
-            }
             Section("Translation") {
                 if model.languages.isEmpty {
                     Text("Translation needs macOS 26 or newer.").font(.caption).foregroundStyle(.secondary)
@@ -257,7 +234,6 @@ struct TranscriberSettingsView: View {
                         let p = NSOpenPanel()
                         p.canChooseDirectories = true; p.canChooseFiles = false; p.canCreateDirectories = true
                         if p.runModal() == .OK, let u = p.url { model.settings.saveFolder = u.path }
-                                .help("Remove this input").accessibilityLabel("Remove this input")
                     }
                 }
                 Text("A session ends when you stop transcribing, quit, or the schedule’s end time passes. The whole session is kept (Clear only empties the window).")
@@ -281,6 +257,7 @@ struct TranscriberSettingsView: View {
                                 Button(role: .destructive) {
                                     model.settings.inputs.removeAll { $0.id == input.id }
                                 } label: { Image(systemName: "trash") }
+                                .help("Remove this input").accessibilityLabel("Remove this input")
                                 .disabled(model.running)
                             }
                         }
@@ -297,17 +274,18 @@ struct TranscriberSettingsView: View {
                 Text("Every input is listened to at once. “Send to website” puts its speech in the transcript; “Trigger OSC” listens for the voice phrases of your automations on it. An input can do both. The level meter and sensitivity below follow the first input that sends to the website.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-            Section("Voice commands") {
+            Section("Voice cues") {
+                Button("Build voice cues in Automations…") { SettingsTab.workflows.open(with: openWindow) }
                 HStack(alignment: .top) {
                     Field("Send OSC to by default") { TextField("Send OSC to", text: $model.settings.oscHost, prompt: Text("127.0.0.1")) }
                     Field("Port", width: 80) { TextField("Port", value: $model.settings.oscPort, format: .number.grouping(.never), prompt: Text("53000")) }
                 }
-                Text("Voice phrases are set up on an automation: give it a Voice Cue trigger (the words to say) and a Send Cue step (the OSC, MIDI or web request to send).")
+                Text("A voice cue is a trigger on an automation: give it a Voice Cue trigger (the words to say), then add whatever steps it should run, such as a Send Cue step (the OSC, MIDI or web request to send). The options below apply to all of them.")
                     .font(.caption).foregroundStyle(.secondary)
                 Toggle("Quick model for commands-only inputs", isOn: $model.settings.oscFastModel)
                 Text(model.commandModelNote ?? "An input that only triggers cues gets a small speech model of its own, so a cue fires about a second sooner and never waits for the transcript. It is a one-time 150 MB download; without internet the main model is used.")
                     .font(.caption).foregroundStyle(.secondary)
-                Field("Listen for OSC on port", width: 80) { TextField("Listen for OSC on port", value: $model.settings.oscInPort, format: .number.grouping(.never), prompt: Text("off")) }
+                Field("Let other devices start and stop transcribing: OSC port", width: 80) { TextField("Listen for OSC on port", value: $model.settings.oscInPort, format: .number.grouping(.never), prompt: Text("off")) }
                 Text("0 is off. Any device on the network can then send /transcriber/start, /stop, /clear, /save, /cues/on and /cues/off to this Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 Field("Wake word (optional)") { TextField("Wake word", text: $model.settings.oscWakeWord, prompt: Text("booth")) }
@@ -370,22 +348,35 @@ Text("Only inputs with “Trigger OSC” on listen for voice phrases, and “Voi
                     }
                 }
             }
-            HStack {
-                Spacer()
-                Button("Save") {
-                    model.apply()
-                    NSApp.keyWindow?.close()
-                }
-                .keyboardShortcut(.defaultAction)
-            }
         }
         .formStyle(.grouped)
         .frame(minWidth: 460, maxWidth: 640)
         .padding()
         .modifier(LanguageDownloader(model: model))
+        .appliesSettingsOnLeave(model)
         .onAppear { model.startMeter() }
         .onDisappear { model.stopMeter() }
     }
+}
+
+/// Settings apply as you change them, with no Save button: leaving the page saves what changed and, if a
+/// transcript is running, restarts it so the change takes effect (the session is not split).
+private struct AppliesSettingsOnLeave: ViewModifier {
+    @ObservedObject var model: AppModel
+    @State private var original: Settings?
+
+    func body(content: Content) -> some View {
+        content
+            .onAppear { original = model.settings }
+            .onDisappear {
+                guard let original, original != model.settings else { return }
+                model.apply()
+            }
+    }
+}
+
+extension View {
+    func appliesSettingsOnLeave(_ model: AppModel) -> some View { modifier(AppliesSettingsOnLeave(model: model)) }
 }
 
 /// Says why the controls next to it are greyed out while a transcript is running.
@@ -476,24 +467,8 @@ struct PlanningCenterSection: View {
                     Text(model.settings.pcoServiceTypeName).tag(id)
                 }
             }
-            if model.settings.scheduleOn && model.settings.pcoOn {
-                Stepper("Start \(model.settings.pcoLeadMinutes) min before the service", value: $model.settings.pcoLeadMinutes, in: 0...120, step: 5)
-                Stepper("Stop \(model.settings.pcoLengthMinutes) min after it starts", value: $model.settings.pcoLengthMinutes, in: 15...300, step: 5)
-            }
-            if model.settings.scheduleOn && model.settings.pcoOn && model.settings.pcoServiceTypeID != nil {
-                let upcoming = model.settings.pcoTimes.filter { Schedule.pcoWindow(model.settings, $0).upperBound > Date() }.prefix(4)
-                if upcoming.isEmpty {
-                    Text(model.pcoBusy ? "Loading service times…" : "No upcoming service times for this service type.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }
-                ForEach(Array(upcoming), id: \.self) { t in
-                    let w = Schedule.pcoWindow(model.settings, t)
-                    Text("\(t.formatted(.dateTime.weekday(.wide).month(.abbreviated).day())): listens \(w.lowerBound.formatted(date: .omitted, time: .shortened))–\(w.upperBound.formatted(date: .omitted, time: .shortened))")
-                        .font(.caption)
-                }
-            }
             Toggle("Expect this plan’s names", isOn: $model.settings.pcoTermsOn)
-                .onChange(of: model.settings.pcoTermsOn) { _, on in if on { Task { await model.refreshPCOTimes() } } }
+                .onChange(of: model.settings.pcoTermsOn) { _, on in if on { Task { await model.refreshPCOTerms() } } }
             if model.settings.pcoTermsOn {
                 Text(model.settings.pcoTerms.isEmpty
                      ? "The speakers, series and title of today’s or the next plan are added to “Names and terms” so they are spelled right."
@@ -501,8 +476,8 @@ struct PlanningCenterSection: View {
                     .font(.caption).foregroundStyle(.secondary)
             }
             HStack {
-                Button("Refresh times") { Task { await model.refreshPCOTimes() } }
-                    .disabled(model.pcoBusy || model.settings.pcoServiceTypeID == nil)
+                Button("Refresh names") { Task { await model.refreshPCOTerms() } }
+                    .disabled(model.pcoBusy || model.settings.pcoServiceTypeID == nil || !model.settings.pcoTermsOn)
                 Spacer()
                 Button("Sign out of Planning Center") { model.pcoSignOut() }
             }

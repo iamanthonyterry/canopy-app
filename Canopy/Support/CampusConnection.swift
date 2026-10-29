@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-/// Which website and campus this Mac is connected to (the address and campus key set in Settings → Transcription → Website),
+/// Which website and campus this Mac is connected to (the address and campus key set in Settings → Connections),
 /// and a way for the rest of the app to call the website's Mac-app endpoints with that key. The key is the only credential the
 /// app has: it belongs to a campus, not a person, so it keeps working on a Mac with nobody logged in.
 @MainActor
@@ -42,7 +42,7 @@ final class CampusConnection: ObservableObject {
     /// Calls one of the website's endpoints with the campus key. A reply that isn't a success throws an `APIError` carrying
     /// the site's own explanation (it sends `{ "error": "…" }`).
     func call(_ path: String, method: String = "GET", query: [URLQueryItem] = [], body: Data? = nil, timeout: TimeInterval = 15) async throws -> Data {
-        guard isConnected, let site else { throw APIError(status: 0, message: "Not connected to a campus. Connect in Settings → Transcription → Website.") }
+        guard isConnected, let site else { throw APIError(status: 0, message: "Not connected to a campus. Connect in Settings → Connections.") }
         var components = URLComponents(url: site.appendingPathComponent(path), resolvingAgainstBaseURL: false)
         if !query.isEmpty { components?.queryItems = query }
         guard let url = components?.url else { throw APIError(status: 0, message: "The website address isn't valid.") }
@@ -58,7 +58,7 @@ final class CampusConnection: ObservableObject {
         guard (200..<300).contains(status) else {
             let message = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["error"] as? String
             throw APIError(status: status, message: status == 401
-                ? "The website doesn't accept this campus key. Connect again in Settings → Transcription → Website."
+                ? "The website doesn't accept this campus key. Connect again in Settings → Connections."
                 : message ?? "The website answered \(status).")
         }
         return data

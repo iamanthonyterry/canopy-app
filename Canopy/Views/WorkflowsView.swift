@@ -290,7 +290,7 @@ private struct WorkflowSyncLine: View {
 
     var body: some View {
         if !connection.isConnected {
-            Button { UserDefaults.standard.set(SettingsTab.transcription.rawValue, forKey: SettingsTab.storageKey) } label: {
+            Button { UserDefaults.standard.set(SettingsTab.connections.rawValue, forKey: SettingsTab.storageKey) } label: {
                 Label("Connect to a campus to share these with its other Macs", systemImage: "arrow.triangle.2.circlepath")
             }
             .buttonStyle(.plain).font(.canopyCaption).foregroundStyle(Color.green)
@@ -322,7 +322,7 @@ private struct WebProgressMenu: View {
                 }
             } else {
                 Text("Connect this Mac to your campus to watch runs from a phone or another computer.")
-                Button("Connect in Settings…") { UserDefaults.standard.set(SettingsTab.transcription.rawValue, forKey: SettingsTab.storageKey) }
+                Button("Connect in Settings…") { UserDefaults.standard.set(SettingsTab.connections.rawValue, forKey: SettingsTab.storageKey) }
             }
             if let error = publisher.lastError { Text(error) }
         } label: {

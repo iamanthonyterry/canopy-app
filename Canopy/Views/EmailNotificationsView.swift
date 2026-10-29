@@ -21,7 +21,7 @@ struct EmailNotificationsView: View {
                         .font(.canopyBody)
                         .foregroundStyle(Color.green)
                 } else {
-                    Label("Connect this Mac to a campus (Settings → Transcription) to send email", systemImage: "exclamationmark.triangle.fill")
+                    Label("Connect this Mac to a campus (Settings → Connections) to send email", systemImage: "exclamationmark.triangle.fill")
                         .font(.canopyBody)
                         .foregroundStyle(.orange)
                 }
