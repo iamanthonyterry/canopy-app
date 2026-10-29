@@ -2,7 +2,7 @@ import SwiftUI
 
 /// The pages of the Settings window. The menu bar opens the window on a chosen page by setting `selected`.
 enum SettingsTab: String, CaseIterable {
-    case general, transcription, workflows, devices, connections
+    case general, transcription, workflows, devices, connections, control
 
     static let storageKey = "settings.tab"
 
@@ -15,10 +15,11 @@ enum SettingsTab: String, CaseIterable {
 }
 
 /// Settings, by what you are doing: General (the app itself), Transcription (listening, translating and voice
-/// cues), Automations, Devices, and Connections (everything Canopy signs in to or talks to).
+/// cues), Automations (with how they name and process files), Devices, Connections (the accounts Canopy signs in to),
+/// and Control & Alerts (what can drive Canopy, and how it warns you).
 struct SettingsRoot: View {
     @ObservedObject var model: AppModel
-    @AppStorage(SettingsTab.storageKey) private var stored = SettingsTab.transcription.rawValue
+    @AppStorage(SettingsTab.storageKey) private var stored = SettingsTab.general.rawValue
 
     /// A page name saved by an older version ("more") opens General instead of nothing.
     private var tab: Binding<String> {
@@ -42,6 +43,9 @@ struct SettingsRoot: View {
             Tab("Connections", systemImage: "link", value: SettingsTab.connections.rawValue) {
                 ConnectionsView(model: model)
             }
+            Tab("Control & Alerts", systemImage: "slider.horizontal.3", value: SettingsTab.control.rawValue) {
+                ControlAlertsView()
+            }
         }
         .environmentObject(AppState.shared)
         .frame(minWidth: 860, minHeight: 600)
@@ -50,7 +54,7 @@ struct SettingsRoot: View {
 
 /// The automation list and builder, with the run history beside it.
 struct WorkflowsPage: View {
-    private enum Section: String, CaseIterable { case workflows = "Automations", history = "History" }
+    private enum Section: String, CaseIterable { case workflows = "Automations", history = "History", naming = "Naming & Performance" }
     @State private var section = Section.workflows
 
     var body: some View {
@@ -62,24 +66,6 @@ struct WorkflowsPage: View {
             switch section {
             case .workflows: WorkflowsView()
             case .history: HistoryView()
-            }
-        }
-    }
-}
-
-/// The devices automations run on, and the two things that shape how they run on them.
-struct DevicesPage: View {
-    private enum Section: String, CaseIterable { case devices = "Devices", naming = "Naming & Performance" }
-    @State private var section = Section.devices
-
-    var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $section) {
-                ForEach(Section.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-            }
-            .pickerStyle(.segmented).labelsHidden().fixedSize().padding(.top, 10)
-            switch section {
-            case .devices: DevicesSettingsView()
             case .naming:
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
@@ -92,6 +78,11 @@ struct DevicesPage: View {
             }
         }
     }
+}
+
+/// The devices automations run on.
+struct DevicesPage: View {
+    var body: some View { DevicesSettingsView() }
 }
 
 /// The app itself: how it starts, updates, and backing up what it knows.

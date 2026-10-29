@@ -2,9 +2,9 @@ import Combine
 import AppKit
 import SwiftUI
 
-/// Settings → Connections: everything Canopy signs in to or talks to, and what it listens for, in one place:
-/// the website (and what it carries: sync, progress, email), Planning Center, Remote Host, OSC/MIDI control, live
-/// alerts and on-device AI. Sign-in happens only here; other pages show a status and link back.
+/// Settings → Connections: the accounts and services Canopy signs in to: the website (and what it carries: sync,
+/// progress, email), Planning Center and Remote Host. Sign-in happens only here; other pages show a status and link back.
+/// What can drive Canopy and how it warns you lives on Control & Alerts.
 struct ConnectionsView: View {
     @ObservedObject var model: AppModel
 
@@ -16,6 +16,18 @@ struct ConnectionsView: View {
                 EmailNotificationsView()
                 PlanningCenterConnectionCard(model: model)
                 RemoteHostCard()
+                Spacer(minLength: 24)
+            }
+            .padding(.vertical)
+        }
+    }
+}
+
+/// Settings → Control & Alerts: OSC and MIDI control, live alerts and on-device AI.
+struct ControlAlertsView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
                 RemoteControlSettingsView()
                 AlertSettingsView()
                 AIModelSettingsView()

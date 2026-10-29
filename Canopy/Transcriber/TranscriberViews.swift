@@ -127,7 +127,7 @@ struct MenuContent: View {
         // Settings pages
         Button("Devices…", systemImage: "externaldrive.connected.to.line.below") { SettingsTab.devices.open(with: openWindow) }
         Button(model.token.isEmpty ? "Connect to Website…" : "Connections…", systemImage: "link") { SettingsTab.connections.open(with: openWindow) }
-        Button("Settings…", systemImage: "gearshape") { SettingsTab.transcription.open(with: openWindow) }
+        Button("Settings…", systemImage: "gearshape") { SettingsTab.general.open(with: openWindow) }
             .keyboardShortcut(",")
         Divider()
 
@@ -198,8 +198,19 @@ struct TranscriberSettingsView: View {
     @ObservedObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
 
+    /// The page is split so the common choices (inputs, translation, saving) aren't buried under cue and tuning options.
+    private enum Page: String, CaseIterable { case captions = "Captions", voice = "Voice Cues", tuning = "Tuning" }
+    @State private var page = Page.captions
+
     var body: some View {
         Form {
+            Section {
+                Picker("Page", selection: $page) {
+                    ForEach(Page.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+            }
+            if page == .captions {
             Section("Translation") {
                 if model.languages.isEmpty {
                     Text("Translation needs macOS 26 or newer.").font(.caption).foregroundStyle(.secondary)
@@ -263,7 +274,7 @@ struct TranscriberSettingsView: View {
                         }
                         HStack {
                             Toggle("Send to website", isOn: $input.sendToSite)
-                            Toggle("Trigger OSC", isOn: $input.triggerOSC)
+                            Toggle("Listen for voice cues", isOn: $input.triggerOSC)
                         }
                         .disabled(model.running)
                     }
@@ -271,13 +282,17 @@ struct TranscriberSettingsView: View {
                 }
                 Button("Add an input") { model.settings.inputs.append(AudioInput(sendToSite: false, triggerOSC: true)) }
                     .disabled(model.running)
-                Text("Every input is listened to at once. “Send to website” puts its speech in the transcript; “Trigger OSC” listens for the voice phrases of your automations on it. An input can do both. The level meter and sensitivity below follow the first input that sends to the website.")
+                Text("Every input is listened to at once. “Send to website” puts its speech in the transcript; “Listen for voice cues” watches it for the phrases your automations use. An input can do both. The level meter and sensitivity below follow the first input that sends to the website.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            }
+            if page == .voice {
             Section("Voice cues") {
+                Text("Say a phrase and Canopy runs an automation: advance the slides, start a recording, cue the lights. Add a Voice Cue trigger to an automation to set the words.")
+                    .font(.caption).foregroundStyle(.secondary)
                 Button("Build voice cues in Automations…") { SettingsTab.workflows.open(with: openWindow) }
                 HStack(alignment: .top) {
-                    Field("Send OSC to by default") { TextField("Send OSC to", text: $model.settings.oscHost, prompt: Text("127.0.0.1")) }
+                    Field("Send cues to this address by default (OSC)") { TextField("Send OSC to", text: $model.settings.oscHost, prompt: Text("127.0.0.1")) }
                     Field("Port", width: 80) { TextField("Port", value: $model.settings.oscPort, format: .number.grouping(.never), prompt: Text("53000")) }
                 }
                 Text("A voice cue is a trigger on an automation: give it a Voice Cue trigger (the words to say), then add whatever steps it should run, such as a Send Cue step (the OSC, MIDI or web request to send). The options below apply to all of them.")
@@ -285,8 +300,8 @@ struct TranscriberSettingsView: View {
                 Toggle("Quick model for commands-only inputs", isOn: $model.settings.oscFastModel)
                 Text(model.commandModelNote ?? "An input that only triggers cues gets a small speech model of its own, so a cue fires about a second sooner and never waits for the transcript. It is a one-time 150 MB download; without internet the main model is used.")
                     .font(.caption).foregroundStyle(.secondary)
-                Field("Let other devices start and stop transcribing: OSC port", width: 80) { TextField("Listen for OSC on port", value: $model.settings.oscInPort, format: .number.grouping(.never), prompt: Text("off")) }
-                Text("0 is off. Any device on the network can then send /transcriber/start, /stop, /clear, /save, /cues/on and /cues/off to this Mac.")
+                Field("Let other devices start and stop transcribing (OSC port)", width: 80) { TextField("Listen for OSC on port", value: $model.settings.oscInPort, format: .number.grouping(.never), prompt: Text("off")) }
+                Text("0 is off. Any device on your network can then send /transcriber/start, /stop, /clear, /save, /cues/on and /cues/off to this Mac.")
                     .font(.caption).foregroundStyle(.secondary)
                 Field("Wake word (optional)") { TextField("Wake word", text: $model.settings.oscWakeWord, prompt: Text("booth")) }
                 Text("With a wake word, a phrase only fires when said right after it: “\(model.settings.oscWakeWord.isEmpty ? "booth" : model.settings.oscWakeWord), next slide”, or the wake word, a breath, then the phrase. Pick an ordinary word that isn’t said in the service.")
@@ -297,9 +312,11 @@ struct TranscriberSettingsView: View {
                         ForEach(model.cueLog.prefix(5)) { Text(CueRow.summary($0)).font(.caption).foregroundStyle($0.outcome == .sent ? .primary : .secondary) }
                     }
                 }
-Text("Only inputs with “Trigger OSC” on listen for voice phrases, and “Voice cues” in the menu bar switches them all off. A phrase matches whole words, ignoring case and punctuation.")
+Text("Only inputs with “Listen for voice cues” on listen for voice phrases, and “Voice cues” in the menu bar switches them all off. A phrase matches whole words, ignoring case and punctuation.")
                     .font(.caption).foregroundStyle(.secondary)
             }
+            }
+            if page == .tuning {
             Section("Tuning") {
                 Field("Names and terms") {
                     TextField("Names and terms", text: $model.settings.vocabulary, prompt: Text("Pastor Jordan, Lifepoint, Ephesians"), axis: .vertical)
@@ -347,6 +364,7 @@ Text("Only inputs with “Trigger OSC” on listen for voice phrases, and “Voi
                         }
                     }
                 }
+            }
             }
         }
         .formStyle(.grouped)
