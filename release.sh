@@ -12,6 +12,7 @@ set -euo pipefail
 # which GitHub redirects to canopy-app. Never create a new repo called "transcriber": it would break that redirect.
 # The old Canopy repo is archived, so its feed is gone. Its zip no longer gets built.
 # CURRENT_PROJECT_VERSION is the date, so it is always newer than any earlier Transcriber or Canopy build.
+# Builds arm64 only: Remote Host's libiroh_ffi.a has no x86_64 slice, so a universal link fails.
 # STOP_BEFORE_NOTARIZE=1 builds and signs everything but doesn't submit it, for checking the bundle.
 
 # One-time setup before first use:
@@ -66,6 +67,8 @@ xcodebuild archive \
   -configuration Release \
   -destination "generic/platform=macOS" \
   -skipMacroValidation \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=NO \
   DEVELOPMENT_TEAM=GAYT638PXY \
   CODE_SIGN_IDENTITY="Developer ID Application" \
   CODE_SIGN_STYLE=Manual \
