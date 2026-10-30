@@ -166,6 +166,7 @@ private nonisolated final class Viewer: @unchecked Sendable {
     private var authed = false
     private var closed = false
     private var terminal: TerminalHost?
+    private var automations: AutomationHost?
     var onClose: (@Sendable () -> Void)?
 
     init(link: RemoteLink, token: String, encoder: ScreenEncoder) {
@@ -182,6 +183,7 @@ private nonisolated final class Viewer: @unchecked Sendable {
             guard !closed else { return }
             closed = true
             terminal?.stop(); terminal = nil
+            stopAutomations()
             link.close()
             onClose?()
         }
@@ -230,8 +232,24 @@ private nonisolated final class Viewer: @unchecked Sendable {
         case .termResize:
             guard authed, let size = try? JSONDecoder().decode(RemoteTermSize.self, from: payload) else { return }
             terminal?.resize(cols: size.cols, rows: size.rows)
+        case .automationSubscribe:
+            guard authed, automations == nil else { return }
+            let host = AutomationHost(onSnapshot: { [weak self] data in
+                self?.queue.async { self?.send(.automationSnapshot, data) }
+            })
+            automations = host
+            Task { @MainActor in host.start() }
+        case .automationUnsubscribe:
+            guard authed else { return }
+            stopAutomations()
         default: break
         }
+    }
+
+    private func stopAutomations() {
+        guard let host = automations else { return }
+        automations = nil
+        Task { @MainActor in host.stop() }
     }
 
     private func startStreaming() async {

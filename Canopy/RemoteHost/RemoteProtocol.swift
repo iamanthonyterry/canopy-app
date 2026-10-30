@@ -13,11 +13,39 @@ nonisolated enum RemoteMsg: UInt8, Sendable {
     case termData = 8   // both ways, raw terminal bytes (viewer keystrokes in, shell output out)
     case termResize = 9 // viewer -> host, JSON RemoteTermSize
     case termExit = 10  // host -> viewer, the shell ended (empty payload)
+    case automationSubscribe = 11   // viewer -> host, empty: start sending automation snapshots
+    case automationUnsubscribe = 12 // viewer -> host, empty: stop
+    case automationSnapshot = 13    // host -> viewer, JSON RemoteAutomationSnapshot, sent when it changes
 }
 
 nonisolated struct RemoteHello: Codable, Sendable { var token: String }
 nonisolated struct RemoteInfo: Codable, Sendable { var width: Int; var height: Int }
 nonisolated struct RemoteTermSize: Codable, Sendable { var cols: Int; var rows: Int }
+
+/// Read-only view of Canopy's automation runs, for the viewer's Automations tab.
+nonisolated struct RemoteAutomationSnapshot: Codable, Sendable, Equatable { var runs: [RemoteAutomationRun] }
+nonisolated struct RemoteAutomationRun: Codable, Sendable, Equatable, Identifiable {
+    var id: String
+    var name: String
+    var startedAt: Double          // seconds since 1970
+    var state: String              // running, paused, waiting, finished, failed, cancelled
+    var currentStep: Int?          // index into steps
+    var steps: [RemoteAutomationStep]
+    var tasks: [RemoteAutomationTask]
+    var log: [String]              // the latest lines
+    var errors: Int
+    var mountError: String?
+}
+nonisolated struct RemoteAutomationStep: Codable, Sendable, Equatable { var name: String; var status: String } // pending, running, waiting, done, skipped, cancelled
+nonisolated struct RemoteAutomationTask: Codable, Sendable, Equatable {
+    var file: String
+    var device: String
+    var phase: String              // queued, downloading, converting, done, error
+    var sync: Double               // 0...1
+    var convert: Double            // 0...1
+    var error: String?
+    var eta: Double?               // seconds
+}
 
 /// Pointer positions are normalised 0...1 across the streamed display.
 nonisolated struct RemoteInput: Codable, Sendable {
