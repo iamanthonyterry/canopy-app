@@ -9,6 +9,8 @@ Canopy is a macOS menu bar app for church A/V teams. It does three jobs:
    record on HyperDecks, offload, make proxies, rename, copy, clean up, format a
    drive, send email, start live transcription, send a cue, and more.
 3. **Remote Host.** Lets a paired iPad running TailDesk see and control this Mac.
+   Canopy can also view and control another Mac that has Remote Host on
+   (Settings → Connections → View another Mac).
 
 Canopy has no Dock icon. Everything is in the menu bar and the Settings window.
 
@@ -42,7 +44,7 @@ time, OSC message, MIDI message, voice cue, or another automation.
 - `Canopy/Support/` — services that do the work (transfer, conversion, scheduling,
   monitoring, alerts, OSC/MIDI, email)
 - `Canopy/Views/` — SwiftUI Settings pages and the automation builder
-- `Canopy/RemoteHost/` — screen streaming and input for TailDesk
+- `Canopy/RemoteHost/` — screen streaming and input for TailDesk, and the viewer for other Macs
 - `ChurchKit/` — local Swift package shared with the church website tools
 - `docs/` — current plans; `docs/archive/` holds finished or outdated ones
 

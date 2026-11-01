@@ -77,6 +77,11 @@ struct CanopyApp: App {
         }
         .defaultSize(width: 520, height: 600)
 
+        WindowGroup("Remote Mac", id: "remote-viewer", for: UUID.self) { $macID in
+            RemoteViewerView(macID: macID)
+        }
+        .defaultSize(width: 1100, height: 700)
+
         Window("Settings", id: "settings") {
             SettingsRoot(model: model)
         }

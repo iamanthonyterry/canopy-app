@@ -16,6 +16,7 @@ struct ConnectionsView: View {
                 EmailNotificationsView()
                 PlanningCenterConnectionCard(model: model)
                 RemoteHostCard()
+                RemoteViewerCard()
                 Spacer(minLength: 24)
             }
             .padding(.vertical)
@@ -179,5 +180,72 @@ private struct RemoteHostCard: View {
                 onFinish: { host.setEnabled(true); showSetup = false },
                 onCancel: { showSetup = false })
         }
+    }
+}
+
+// MARK: View another Mac
+
+private struct RemoteViewerCard: View {
+    @ObservedObject private var store = RemoteMacStore.shared
+    @Environment(\.openWindow) private var openWindow
+    @State private var showAdd = false
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                ConnectionHeader(title: "View another Mac", icon: "rectangle.on.rectangle", connected: !store.macs.isEmpty,
+                                 detail: "See and control a Mac that has Remote Host turned on")
+                ForEach(store.macs) { mac in
+                    HStack {
+                        Image(systemName: "desktopcomputer").foregroundStyle(.secondary)
+                        Text(mac.name)
+                        Spacer()
+                        Button("Connect") { openWindow(id: "remote-viewer", value: mac.id) }
+                        Button(role: .destructive) { store.remove(mac.id) } label: { Image(systemName: "trash") }
+                            .help("Remove this Mac")
+                    }
+                }
+                HStack {
+                    Button("Add Mac…") { showAdd = true }
+                    Spacer()
+                }
+                Text("On the other Mac, turn on Remote Host in Settings → Connections and copy its pairing code. Anyone with that code can control that Mac.")
+                    .font(.canopyCaption).foregroundStyle(.secondary)
+            }
+            .padding(.top, 6)
+        }
+        .padding(.horizontal)
+        .sheet(isPresented: $showAdd) { AddRemoteMacSheet(isPresented: $showAdd) }
+    }
+}
+
+private struct AddRemoteMacSheet: View {
+    @Binding var isPresented: Bool
+    @State private var name = ""
+    @State private var code = ""
+    @State private var invalid = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Add a Mac").font(.canopyTitle)
+            TextField("Name (for example, Sanctuary Mac)", text: $name)
+            TextField("Pairing code", text: $code, axis: .vertical)
+                .font(.system(.caption, design: .monospaced)).lineLimit(3...6)
+            if invalid {
+                Label("That isn't a pairing code. Copy it again from the other Mac.", systemImage: "exclamationmark.triangle.fill")
+                    .font(.canopyCaption).foregroundStyle(.orange)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { isPresented = false }
+                Button("Add") {
+                    if RemoteMacStore.shared.add(name: name, pairingCode: code) { isPresented = false } else { invalid = true }
+                }
+                .buttonStyle(.canopyPrimary)
+                .disabled(code.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(24)
+        .frame(width: 460)
     }
 }
