@@ -104,7 +104,6 @@ struct WorkflowsView: View {
                 Text("Automations").font(.canopyTitle).foregroundStyle(Color.primary)
                 Text("\(appState.workflows.count) automation\(appState.workflows.count == 1 ? "" : "s")")
                     .font(.canopySubheadline).foregroundStyle(.secondary)
-                WorkflowSyncLine()
             }
             Spacer(minLength: 8)
             ViewThatFits(in: .horizontal) {
@@ -117,7 +116,6 @@ struct WorkflowsView: View {
 
     private func headerButtons(iconOnly: Bool) -> some View {
         HStack(spacing: 8) {
-            WebProgressMenu()
             Menu {
                 ForEach(WorkflowTemplate.all) { template in
                     Button { builder = .draft(template.make()) } label: {
@@ -305,56 +303,6 @@ struct WorkflowsView: View {
 /// session directly — that's what lets the confirmation prompt below
 /// appear the instant a step pauses, without waiting on some unrelated
 /// redraw elsewhere in the app.
-/// Under the page title: whether this Mac is connected to a campus and whether the list is shared with its other Macs.
-private struct WorkflowSyncLine: View {
-    @ObservedObject private var connection = CampusConnection.shared
-    @ObservedObject private var sync = WorkflowSyncService.shared
-
-    var body: some View {
-        if !connection.isConnected {
-            Button { UserDefaults.standard.set(SettingsTab.connections.rawValue, forKey: SettingsTab.storageKey) } label: {
-                Label("Connect to a campus to share these with its other Macs", systemImage: "arrow.triangle.2.circlepath")
-            }
-            .buttonStyle(.plain).font(.canopyCaption).foregroundStyle(Color.green)
-        } else if sync.isEnabled {
-            Label(SyncStatus.text(sync), systemImage: sync.lastError == nil ? "checkmark.icloud" : "exclamationmark.icloud")
-                .font(.canopyCaption)
-                .foregroundStyle(sync.lastError == nil ? Color.secondary : Color.orange)
-        } else {
-            Label("Sync is off", systemImage: "icloud.slash").font(.canopyCaption).foregroundStyle(.secondary)
-        }
-    }
-}
-
-/// Whether this Mac's runs show on the church website's Workflows page, and a way there.
-private struct WebProgressMenu: View {
-    @ObservedObject private var connection = CampusConnection.shared
-    @ObservedObject private var publisher = WorkflowRunPublisher.shared
-    @ObservedObject private var sync = WorkflowSyncService.shared
-
-    var body: some View {
-        Menu {
-            if connection.isConnected {
-                if !connection.campusName.isEmpty { Text("Connected to \(connection.campusName)") }
-                Toggle("Share progress on the website", isOn: $publisher.isEnabled)
-                Toggle("Share automations with this campus's other Macs", isOn: $sync.isEnabled)
-                if sync.isEnabled { Text(SyncStatus.text(sync)) }
-                if let origin = connection.origin {
-                    Link("Open automation progress on the website", destination: origin.appendingPathComponent("workflows"))
-                }
-            } else {
-                Text("Connect this Mac to your campus to watch runs from a phone or another computer.")
-                Button("Connect in Settings…") { UserDefaults.standard.set(SettingsTab.connections.rawValue, forKey: SettingsTab.storageKey) }
-            }
-            if let error = publisher.lastError { Text(error) }
-        } label: {
-            Image(systemName: connection.isConnected && publisher.isEnabled ? "globe" : "globe.badge.chevron.backward")
-        }
-        .menuStyle(.borderlessButton).fixedSize()
-        .help(connection.isConnected && publisher.isEnabled ? "Runs are shared on the website" : "Watch runs on the website")
-    }
-}
-
 private struct RunningWorkflowBanner: View {
     @ObservedObject var session: WorkflowRunSession
     let engine: WorkflowEngine

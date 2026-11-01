@@ -2,14 +2,11 @@ import SwiftUI
 
 // MARK: - The website connection
 // Canopy talks to the church's website with one thing: the campus key, set when this Mac is connected to a campus
-// (Settings → Connections → Church Landing Page). It covers the live transcript, device jobs, workflow progress, the shared workflow
-// list and email. There is no separate person sign-in. This card shows what the connection is being used for.
+// (Settings → Connections → Church Landing Page). It covers the live transcript, device jobs and email. There is no separate person sign-in. This card shows what the connection is being used for.
 
-/// Settings → Connections: what the campus connection covers, and switches for sharing progress and syncing workflows.
+/// Settings → Connections: what the campus connection covers.
 struct WebsiteCard: View {
     @ObservedObject private var connection = CampusConnection.shared
-    @ObservedObject private var sync = WorkflowSyncService.shared
-    @ObservedObject private var publisher = WorkflowRunPublisher.shared
 
     var body: some View {
         GroupBox(label: Label("Website", systemImage: "globe")) {
@@ -23,7 +20,7 @@ struct WebsiteCard: View {
 
     private var notConnected: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Connect this Mac to your campus to share automation progress on the website, keep automations in step with your other Macs at the campus, and send email from automations.")
+            Text("Connect this Mac to your campus to send email from automations.")
                 .font(.canopyBody).foregroundStyle(.secondary)
             Button {
                 UserDefaults.standard.set(SettingsTab.transcription.rawValue, forKey: SettingsTab.storageKey)
@@ -45,18 +42,6 @@ struct WebsiteCard: View {
             }
             Divider()
 
-            row("Automations", icon: "arrow.triangle.2.circlepath",
-                detail: sync.isEnabled ? SyncStatus.text(sync) : "Not shared with this campus's other Macs",
-                ok: sync.isEnabled && sync.lastError == nil) {
-                Toggle("Sync", isOn: $sync.isEnabled).labelsHidden().toggleStyle(.switch).controlSize(.small)
-            }
-
-            row("Run progress", icon: "globe",
-                detail: publisher.lastError ?? (publisher.isEnabled ? "Shared on the website" : "Not shared"),
-                ok: publisher.isEnabled && publisher.lastError == nil) {
-                Toggle("Share", isOn: $publisher.isEnabled).labelsHidden().toggleStyle(.switch).controlSize(.small)
-            }
-
             row("Email", icon: "envelope", detail: "Sends from \(NotificationMailer.fromAddress)", ok: true)
         }
     }
@@ -72,15 +57,5 @@ struct WebsiteCard: View {
             Spacer()
             trailing()
         }
-    }
-}
-
-/// One-line description of where workflow sync stands.
-enum SyncStatus {
-    @MainActor static func text(_ sync: WorkflowSyncService) -> String {
-        if let error = sync.lastError { return error }
-        if sync.isSyncing { return "Syncing…" }
-        if let at = sync.lastSynced { return "Synced \(at.formatted(date: .omitted, time: .shortened))" }
-        return "Waiting to sync"
     }
 }
