@@ -55,6 +55,7 @@ struct WorkflowStepConfigSheet: View {
     @State private var showCopyToFolderPicker = false
 
     private enum WebhookTestState: Equatable { case idle, sending, sent, failed(String) }
+    private enum AppleScriptTestState: Equatable { case idle, running, finished(String), failed(String) }
     private enum CopyTargetChoice: Hashable { case global, cloudStore(UUID), localFolder(UUID) }
     @State private var exportPostsFormat = SocialFormat.vertical
     @State private var exportPostsCaptions = true
@@ -64,6 +65,9 @@ struct WorkflowStepConfigSheet: View {
     @State private var controlCommand: DeckCommand = .start
     @State private var waitValue = 1
     @State private var cueRule = OSCRule()
+    @State private var appleScript = ""
+    @State private var appleScriptTimeout = AppleScriptRunner.defaultTimeoutSeconds
+    @State private var appleScriptTestState: AppleScriptTestState = .idle
     @State private var liveCommand: LiveTranscriptionCommand = .start
     @State private var liveStopAfterOn = false
     @State private var liveStopAfterMinutes = 90
@@ -175,6 +179,9 @@ struct WorkflowStepConfigSheet: View {
 
                 case .sendCue:
                     sendCueFields
+
+                case .runAppleScript:
+                    appleScriptFields
                 }
 
                 Section {
@@ -1074,6 +1081,52 @@ struct WorkflowStepConfigSheet: View {
         }
     }
 
+    private var appleScriptFields: some View {
+        Group {
+            TextEditor(text: $appleScript)
+                .font(.system(.body, design: .monospaced))
+                .autocorrectionDisabled()
+                .frame(minHeight: 140)
+                .overlay(alignment: .topLeading) {
+                    if appleScript.isEmpty {
+                        Text("tell application \"Finder\"\n    activate\nend tell")
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .padding(.top, 8).padding(.leading, 5)
+                            .allowsHitTesting(false)
+                    }
+                }
+            Stepper("Stop it after \(appleScriptTimeout) second\(appleScriptTimeout == 1 ? "" : "s")", value: $appleScriptTimeout, in: AppleScriptRunner.timeoutRange, step: 5)
+            HStack {
+                Button("Test") { testAppleScript() }
+                    .disabled(appleScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || appleScriptTestState == .running)
+                switch appleScriptTestState {
+                case .idle:            EmptyView()
+                case .running:         ProgressView().controlSize(.small)
+                case .finished(let result):
+                    Label(result.isEmpty ? "Finished" : result, systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green).font(.canopyCaption).lineLimit(2)
+                case .failed(let why): Text(why).font(.canopyCaption).foregroundStyle(Color.orange).lineLimit(3)
+                }
+            }
+            Text("Runs once when the automation reaches this step, on this Mac. macOS asks permission the first time a script controls another app. A script that fails or overruns is logged but doesn't stop the automation. Test runs the script for real.")
+                .font(.canopyCaption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func testAppleScript() {
+        appleScriptTestState = .running
+        let script = appleScript, timeout = appleScriptTimeout
+        Task {
+            do {
+                let result = try await AppleScriptRunner.run(script, timeoutSeconds: timeout)
+                appleScriptTestState = .finished(String(result.prefix(200)))
+            } catch {
+                appleScriptTestState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
     private var liveTranscriptionFields: some View {
         Group {
             Picker("Action", selection: $liveCommand) {
@@ -1109,6 +1162,9 @@ struct WorkflowStepConfigSheet: View {
             controlCommand = command
         case .sendCue(let cue):
             cueRule = cue
+        case .runAppleScript(let script, let timeoutSeconds):
+            appleScript = script
+            appleScriptTimeout = timeoutSeconds
         case .liveTranscription(let command, let stopAfterMinutes):
             liveCommand = command
             liveStopAfterOn = stopAfterMinutes > 0
@@ -1200,6 +1256,11 @@ struct WorkflowStepConfigSheet: View {
             step.action = .controlDeck(command: controlCommand)
         case .sendCue:
             step.action = .sendCue(cueRule)
+        case .runAppleScript:
+            step.action = .runAppleScript(
+                script: appleScript.trimmingCharacters(in: .whitespacesAndNewlines),
+                timeoutSeconds: min(max(appleScriptTimeout, AppleScriptRunner.timeoutRange.lowerBound), AppleScriptRunner.timeoutRange.upperBound)
+            )
         case .liveTranscription:
             step.action = .liveTranscription(command: liveCommand, stopAfterMinutes: liveCommand == .start && liveStopAfterOn ? liveStopAfterMinutes : 0)
         case .wait:

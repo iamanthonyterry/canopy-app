@@ -340,6 +340,14 @@ final class WorkflowEngine: ObservableObject {
                 continue
             }
 
+            // Run AppleScript runs once too: the script acts on this Mac, not on any one device.
+            if case .runAppleScript(let script, let timeoutSeconds) = step.action {
+                await runAppleScript(script, timeoutSeconds: timeoutSeconds, session: session)
+                session.endStep(step.id)
+                stepIndex += 1
+                continue
+            }
+
             // Live Transcription also runs once for the whole automation: it
             // controls this Mac's live transcript, not any one device.
             if case .liveTranscription(let command, let stopAfterMinutes) = step.action {
@@ -655,6 +663,8 @@ final class WorkflowEngine: ObservableObject {
         case .liveTranscription:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sendCue:
+            break // handled once per run, before the per-deck fan-out — see `start`
+        case .runAppleScript:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sync(_, let verify, let deleteFromDevice):
             // Removing an original is only safe against a verified copy.
@@ -1892,6 +1902,23 @@ final class WorkflowEngine: ObservableObject {
         }
         model.sendOSC(filled)
         session.log("  📡 Sent \(StepAction.sendCue(filled).summary)")
+    }
+
+    // MARK: - Run AppleScript step
+
+    private func runAppleScript(_ script: String, timeoutSeconds: Int, session: WorkflowRunSession) async {
+        guard let first = AppleScriptRunner.firstLine(of: script) else {
+            session.log("  ⏭ Run AppleScript: no script written — skipped")
+            return
+        }
+        session.log("  📜 Running AppleScript: \(first)")
+        do {
+            let result = try await AppleScriptRunner.run(script, timeoutSeconds: timeoutSeconds)
+            session.log(result.isEmpty ? "  📜 AppleScript finished" : "  📜 AppleScript finished: \(result.prefix(500))")
+        } catch {
+            session.log("  ⚠️ AppleScript failed: \(error.localizedDescription)")
+            session.errors += 1
+        }
     }
 
     // MARK: - Live Transcription step

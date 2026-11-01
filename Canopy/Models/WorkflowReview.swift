@@ -24,6 +24,8 @@ enum WorkflowReview {
                 if !step.requiresConfirmation { out.append(Item(severity: .warning, text: "Step \(n) runs without asking for confirmation first.")) }
             case .webhook(let url, _) where url.trimmingCharacters(in: .whitespaces).isEmpty:
                 out.append(Item(severity: .warning, text: "Step \(n) (Send Webhook) has no URL."))
+            case .runAppleScript(let script, _) where script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty:
+                out.append(Item(severity: .warning, text: "Step \(n) (Run AppleScript) has no script."))
             case .notify(_, _, let recipients, _) where recipients.isEmpty:
                 out.append(Item(severity: .warning, text: "Step \(n) (Notification) has no recipients."))
             case .triggerWorkflow(let id, _, _) where id == nil:

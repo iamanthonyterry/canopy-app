@@ -4,6 +4,8 @@
 <dict>
 	<key>com.apple.security.device.audio-input</key>
 	<true/>
+	<key>com.apple.security.automation.apple-events</key>
+	<true/>
     <!-- App Sandbox is disabled: this app is distributed directly (GitHub
          Releases) with Sparkle auto-updates, not through the Mac App Store.
          Sparkle needs to replace the app bundle on disk, which a sandboxed

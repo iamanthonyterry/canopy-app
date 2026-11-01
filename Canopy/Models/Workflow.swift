@@ -34,7 +34,7 @@ enum LiveTranscriptionCommand: String, Codable, CaseIterable, Identifiable {
 // MARK: - Step Kind
 // The catalog of step types users can drag into a workflow.
 enum StepKind: String, Codable, CaseIterable, Identifiable {
-    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue
+    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript
 
     var id: String { rawValue }
 
@@ -60,6 +60,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .triggerWorkflow: return "Trigger Automation"
         case .liveTranscription: return "Live Transcription"
         case .sendCue:         return "Send Cue"
+        case .runAppleScript:  return "Run AppleScript"
         }
     }
 
@@ -85,6 +86,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .triggerWorkflow: return "Start another automation running"
         case .liveTranscription: return "Start or stop the live transcript sent to the website"
         case .sendCue:         return "Send an OSC message, MIDI message or web request"
+        case .runAppleScript:  return "Run an AppleScript on this Mac — control other apps, files and the system"
         }
     }
 
@@ -110,6 +112,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .triggerWorkflow: return "arrow.triangle.branch"
         case .liveTranscription: return "waveform"
         case .sendCue:         return "dot.radiowaves.left.and.right"
+        case .runAppleScript:  return "applescript"
         }
     }
 
@@ -138,7 +141,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
     /// somewhere to run for. The rest (wait, notify, webhook…) run fine
     /// with no device or folder at all.
     var worksOnFiles: Bool {
-        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue].contains(self)
+        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue, .runAppleScript].contains(self)
     }
 
     var color: Color {
@@ -163,6 +166,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .triggerWorkflow: return .cyan
         case .liveTranscription: return .red
         case .sendCue:         return .teal
+        case .runAppleScript:  return .brown
         }
     }
 }
@@ -428,6 +432,9 @@ enum StepAction: Hashable {
     /// Sends one cue — OSC, MIDI or a web request. The rule's phrase is unused; `{number}` in the
     /// address or value becomes the number spoken to a Voice Cue trigger that started the run.
     case sendCue(OSCRule)
+    /// Runs `script` with `osascript` once per run. A script that errors or runs longer than
+    /// `timeoutSeconds` is logged and counted as an error, but doesn't stop the automation.
+    case runAppleScript(script: String, timeoutSeconds: Int)
 
     var kind: StepKind {
         switch self {
@@ -451,6 +458,7 @@ enum StepAction: Hashable {
         case .triggerWorkflow: return .triggerWorkflow
         case .liveTranscription: return .liveTranscription
         case .sendCue: return .sendCue
+        case .runAppleScript: return .runAppleScript
         }
     }
 
@@ -476,6 +484,7 @@ enum StepAction: Hashable {
         case .triggerWorkflow: return .triggerWorkflow(workflowID: nil, waitForCompletion: false)
         case .liveTranscription: return .liveTranscription(command: .start, stopAfterMinutes: 0)
         case .sendCue: return .sendCue(OSCRule())
+        case .runAppleScript: return .runAppleScript(script: "", timeoutSeconds: AppleScriptRunner.defaultTimeoutSeconds)
         }
     }
 
@@ -571,6 +580,9 @@ enum StepAction: Hashable {
             case .midi:              return "MIDI \(cue.address)" + (cue.argument.isEmpty ? "" : " \(cue.argument)")
             case .workflow:          return "Starts an automation"
             }
+        case .runAppleScript(let script, let timeoutSeconds):
+            guard let first = AppleScriptRunner.firstLine(of: script) else { return "No script written yet" }
+            return "Runs \"\(first)\"" + (AppleScriptRunner.hasSeveralLines(script) ? "…" : "") + " · stops after \(timeoutSeconds) second\(timeoutSeconds == 1 ? "" : "s")"
         case .upload:
             return "Coming soon — this step is skipped for now"
         case .reframe(let format, let followSubject):
@@ -601,7 +613,7 @@ enum StepAction: Hashable {
 // MARK: - StepAction Codable Implementation
 extension StepAction: Codable {
     enum CodingKeys: String, CodingKey {
-        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue
+        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript
         /// Only to recognise a step saved before the Export Queue was removed.
         case queueClips
     }
@@ -681,6 +693,10 @@ extension StepAction: Codable {
 
     enum SendCueKeys: String, CodingKey {
         case cue
+    }
+
+    enum RunAppleScriptKeys: String, CodingKey {
+        case script, timeoutSeconds
     }
 
     enum CleanupKeys: String, CodingKey {
@@ -819,6 +835,11 @@ extension StepAction: Codable {
         } else if container.contains(.sendCue) {
             let nested = try container.nestedContainer(keyedBy: SendCueKeys.self, forKey: .sendCue)
             self = .sendCue(try nested.decodeIfPresent(OSCRule.self, forKey: .cue) ?? OSCRule())
+        } else if container.contains(.runAppleScript) {
+            let nested = try container.nestedContainer(keyedBy: RunAppleScriptKeys.self, forKey: .runAppleScript)
+            let script = try nested.decodeIfPresent(String.self, forKey: .script) ?? ""
+            let timeout = try nested.decodeIfPresent(Int.self, forKey: .timeoutSeconds) ?? AppleScriptRunner.defaultTimeoutSeconds
+            self = .runAppleScript(script: script, timeoutSeconds: timeout)
         } else if container.contains(.liveTranscription) {
             let nested = try container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
             let command = try nested.decodeIfPresent(LiveTranscriptionCommand.self, forKey: .command) ?? .start
@@ -912,6 +933,10 @@ extension StepAction: Codable {
         case .sendCue(let cue):
             var nested = container.nestedContainer(keyedBy: SendCueKeys.self, forKey: .sendCue)
             try nested.encode(cue, forKey: .cue)
+        case .runAppleScript(let script, let timeoutSeconds):
+            var nested = container.nestedContainer(keyedBy: RunAppleScriptKeys.self, forKey: .runAppleScript)
+            try nested.encode(script, forKey: .script)
+            try nested.encode(timeoutSeconds, forKey: .timeoutSeconds)
         case .liveTranscription(let command, let stopAfterMinutes):
             var nested = container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
             try nested.encode(command, forKey: .command)
@@ -1206,7 +1231,7 @@ struct Workflow: Identifiable, Codable, Hashable {
 
     /// True if any step needs the shared sync destination mounted.
     var needsDestinationMount: Bool {
-        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue].contains($0.kind) }
+        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue, .runAppleScript].contains($0.kind) }
     }
 
     /// The destination configured on this workflow's Sync step. Falls back
