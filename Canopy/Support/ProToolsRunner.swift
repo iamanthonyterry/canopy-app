@@ -4,6 +4,19 @@ import Foundation
 /// Pro Tools' scripting API (PTSL) can't open plugin windows or recall presets. Each action builds an
 /// AppleScript that finds things by name, acts, reads the result back, and fails with a clear message
 /// rather than clicking blindly. Needs Canopy to be allowed under Privacy & Security > Accessibility.
+nonisolated enum ProToolsTransportCommand: String, Codable, CaseIterable, Identifiable {
+    case play, pause, stop
+    var id: String { rawValue }
+    var title: String { menuItem }
+    var menuItem: String {
+        switch self {
+        case .play:  return "Play"
+        case .pause: return "Pause"
+        case .stop:  return "Stop"
+        }
+    }
+}
+
 nonisolated enum ProToolsRunner {
     static let defaultTimeoutSeconds = 30
     static let insertSlots = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]
@@ -124,6 +137,28 @@ nonisolated enum ProToolsRunner {
         end tell
         return "Preset set to " & \(presetName)
         """
+    }
+
+    /// The Transport menu item that does `command`. Menu items are used instead of keystrokes because
+    /// they work whichever window or text field has focus.
+    static func transportScript(_ command: ProToolsTransportCommand) -> String {
+        """
+        tell application "System Events"
+            if not (exists process "Pro Tools") then error "Pro Tools isn't running"
+            tell process "Pro Tools"
+                try
+                    click menu item \(literal(command.menuItem)) of menu "Transport" of menu bar 1
+                on error
+                    error "Pro Tools has no \(command.menuItem) item in its Transport menu right now"
+                end try
+            end tell
+        end tell
+        return "\(command.menuItem)"
+        """
+    }
+
+    static func transport(_ command: ProToolsTransportCommand, timeoutSeconds: Int = defaultTimeoutSeconds) async throws -> String {
+        try await AppleScriptRunner.run(transportScript(command), timeoutSeconds: timeoutSeconds)
     }
 
     static func openInsert(track: String, slot: String, timeoutSeconds: Int = defaultTimeoutSeconds) async throws -> String {

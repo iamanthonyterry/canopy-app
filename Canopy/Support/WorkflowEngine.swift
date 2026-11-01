@@ -355,6 +355,12 @@ final class WorkflowEngine: ObservableObject {
                 stepIndex += 1
                 continue
             }
+            if case .proToolsTransport(let command) = step.action {
+                await runProTools(command.title, session: session) { try await ProToolsRunner.transport(command) }
+                session.endStep(step.id)
+                stepIndex += 1
+                continue
+            }
             if case .proToolsSelectPreset(let preset) = step.action {
                 await runProTools("Select preset \(preset)", session: session) { try await ProToolsRunner.selectPreset(preset) }
                 session.endStep(step.id)
@@ -678,7 +684,7 @@ final class WorkflowEngine: ObservableObject {
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sendCue:
             break // handled once per run, before the per-deck fan-out — see `start`
-        case .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset:
+        case .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset, .proToolsTransport:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sync(_, let verify, let deleteFromDevice):
             // Removing an original is only safe against a verified copy.

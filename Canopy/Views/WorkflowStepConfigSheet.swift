@@ -71,6 +71,7 @@ struct WorkflowStepConfigSheet: View {
     @State private var proToolsTrack = ""
     @State private var proToolsSlot = "A"
     @State private var proToolsPreset = ""
+    @State private var proToolsCommand: ProToolsTransportCommand = .play
     @State private var proToolsTestState: AppleScriptTestState = .idle
     @State private var liveCommand: LiveTranscriptionCommand = .start
     @State private var liveStopAfterOn = false
@@ -192,6 +193,9 @@ struct WorkflowStepConfigSheet: View {
 
                 case .proToolsSelectPreset:
                     proToolsPresetFields
+
+                case .proToolsTransport:
+                    proToolsTransportFields
                 }
 
                 Section {
@@ -1138,6 +1142,18 @@ struct WorkflowStepConfigSheet: View {
         }
     }
 
+    private var proToolsTransportFields: some View {
+        Group {
+            Picker("Action", selection: $proToolsCommand) {
+                ForEach(ProToolsTransportCommand.allCases) { Text($0.title).tag($0) }
+            }
+            .pickerStyle(.segmented)
+            proToolsTestRow(disabled: false) { try await ProToolsRunner.transport(proToolsCommand) }
+            Text("Uses Pro Tools' Transport menu, so Pro Tools must be running. Canopy needs Accessibility permission the first time. Test does it for real.")
+                .font(.canopyCaption).foregroundStyle(.secondary)
+        }
+    }
+
     private var proToolsPresetFields: some View {
         Group {
             TextField("Preset name", text: $proToolsPreset)
@@ -1223,6 +1239,8 @@ struct WorkflowStepConfigSheet: View {
             proToolsSlot = slot
         case .proToolsSelectPreset(let preset):
             proToolsPreset = preset
+        case .proToolsTransport(let command):
+            proToolsCommand = command
         case .runAppleScript(let script, let timeoutSeconds):
             appleScript = script
             appleScriptTimeout = timeoutSeconds
@@ -1319,6 +1337,8 @@ struct WorkflowStepConfigSheet: View {
             step.action = .sendCue(cueRule)
         case .proToolsOpenInsert:
             step.action = .proToolsOpenInsert(track: proToolsTrack.trimmingCharacters(in: .whitespacesAndNewlines), slot: proToolsSlot)
+        case .proToolsTransport:
+            step.action = .proToolsTransport(command: proToolsCommand)
         case .proToolsSelectPreset:
             step.action = .proToolsSelectPreset(preset: proToolsPreset.trimmingCharacters(in: .whitespacesAndNewlines))
         case .runAppleScript:

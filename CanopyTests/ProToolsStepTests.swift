@@ -5,17 +5,23 @@ import Testing
 @MainActor
 struct ProToolsStepTests {
     @Test func stepsSurviveSaveAndLoad() throws {
-        for action in [StepAction.proToolsOpenInsert(track: "Pastor", slot: "C"), .proToolsSelectPreset(preset: "Warm Voice")] {
+        for action in [StepAction.proToolsOpenInsert(track: "Pastor", slot: "C"), .proToolsSelectPreset(preset: "Warm Voice"), .proToolsTransport(command: .pause)] {
             let data = try JSONEncoder().encode(WorkflowStep(action: action))
             #expect(try JSONDecoder().decode(WorkflowStep.self, from: data).action == action)
         }
     }
 
     @Test func kindsDontNeedFilesOrADestination() {
-        for kind in [StepKind.proToolsOpenInsert, .proToolsSelectPreset] {
+        for kind in [StepKind.proToolsOpenInsert, .proToolsSelectPreset, .proToolsTransport] {
             #expect(!kind.worksOnFiles)
             #expect(StepAction.defaultAction(for: kind).kind == kind)
         }
+    }
+
+    @Test func transportClicksTheMatchingMenuItem() {
+        #expect(ProToolsRunner.transportScript(.play).contains("menu item \"Play\" of menu \"Transport\""))
+        #expect(ProToolsRunner.transportScript(.stop).contains("menu item \"Stop\" of menu \"Transport\""))
+        #expect(ProToolsRunner.transportScript(.pause).contains("menu item \"Pause\" of menu \"Transport\""))
     }
 
     @Test func namesAreEscapedInTheScript() {

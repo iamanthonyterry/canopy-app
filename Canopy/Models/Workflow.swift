@@ -64,7 +64,7 @@ enum StepCategory: String, CaseIterable, Identifiable {
 // MARK: - Step Kind
 // The catalog of step types users can drag into a workflow.
 enum StepKind: String, Codable, CaseIterable, Identifiable {
-    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript, proToolsOpenInsert, proToolsSelectPreset
+    case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript, proToolsOpenInsert, proToolsSelectPreset, proToolsTransport
 
     var id: String { rawValue }
 
@@ -74,7 +74,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .createFolder, .sync, .copyTo, .upload, .rename, .cleanup: return .files
         case .convert, .reframe: return .video
         case .transcribe, .findClips, .exportPosts, .writeCopy, .liveTranscription: return .content
-        case .sendCue, .runAppleScript, .webhook, .proToolsOpenInsert, .proToolsSelectPreset: return .showControl
+        case .sendCue, .runAppleScript, .webhook, .proToolsOpenInsert, .proToolsSelectPreset, .proToolsTransport: return .showControl
         case .wait, .notify, .triggerWorkflow: return .flow
         }
     }
@@ -104,6 +104,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .runAppleScript:  return "Run AppleScript"
         case .proToolsOpenInsert: return "Pro Tools: Open Insert"
         case .proToolsSelectPreset: return "Pro Tools: Select Preset"
+        case .proToolsTransport: return "Pro Tools: Transport"
         }
     }
 
@@ -132,6 +133,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .runAppleScript:  return "Run an AppleScript on this Mac — control other apps, files and the system"
         case .proToolsOpenInsert: return "Open a plugin insert on a track in Pro Tools"
         case .proToolsSelectPreset: return "Choose a preset in the plugin window that is open in Pro Tools"
+        case .proToolsTransport: return "Play, pause or stop playback in Pro Tools"
         }
     }
 
@@ -160,6 +162,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .runAppleScript:  return "applescript"
         case .proToolsOpenInsert: return "slider.horizontal.3"
         case .proToolsSelectPreset: return "list.bullet.rectangle"
+        case .proToolsTransport: return "playpause"
         }
     }
 
@@ -188,7 +191,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
     /// somewhere to run for. The rest (wait, notify, webhook…) run fine
     /// with no device or folder at all.
     var worksOnFiles: Bool {
-        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue, .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset].contains(self)
+        ![.format, .controlDeck, .wait, .createFolder, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue, .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset, .proToolsTransport].contains(self)
     }
 
     var color: Color {
@@ -214,7 +217,7 @@ enum StepKind: String, Codable, CaseIterable, Identifiable {
         case .liveTranscription: return .red
         case .sendCue:         return .teal
         case .runAppleScript:  return .brown
-        case .proToolsOpenInsert, .proToolsSelectPreset: return .indigo
+        case .proToolsOpenInsert, .proToolsSelectPreset, .proToolsTransport: return .indigo
         }
     }
 }
@@ -487,6 +490,8 @@ enum StepAction: Hashable {
     case proToolsOpenInsert(track: String, slot: String)
     /// Picks `preset` by name from the plugin window that is open in Pro Tools, then checks it took.
     case proToolsSelectPreset(preset: String)
+    /// Plays or pauses Pro Tools through its Transport menu.
+    case proToolsTransport(command: ProToolsTransportCommand)
 
     var kind: StepKind {
         switch self {
@@ -513,6 +518,7 @@ enum StepAction: Hashable {
         case .runAppleScript: return .runAppleScript
         case .proToolsOpenInsert: return .proToolsOpenInsert
         case .proToolsSelectPreset: return .proToolsSelectPreset
+        case .proToolsTransport: return .proToolsTransport
         }
     }
 
@@ -541,6 +547,7 @@ enum StepAction: Hashable {
         case .runAppleScript: return .runAppleScript(script: "", timeoutSeconds: AppleScriptRunner.defaultTimeoutSeconds)
         case .proToolsOpenInsert: return .proToolsOpenInsert(track: "", slot: "A")
         case .proToolsSelectPreset: return .proToolsSelectPreset(preset: "")
+        case .proToolsTransport: return .proToolsTransport(command: .play)
         }
     }
 
@@ -643,6 +650,8 @@ enum StepAction: Hashable {
             return track.isEmpty ? "No track named yet" : "Opens insert \(slot) on \"\(track)\" in Pro Tools"
         case .proToolsSelectPreset(let preset):
             return preset.isEmpty ? "No preset named yet" : "Sets the open plugin to \"\(preset)\""
+        case .proToolsTransport(let command):
+            return "\(command.title) in Pro Tools"
         case .upload:
             return "Coming soon — this step is skipped for now"
         case .reframe(let format, let followSubject):
@@ -673,7 +682,7 @@ enum StepAction: Hashable {
 // MARK: - StepAction Codable Implementation
 extension StepAction: Codable {
     enum CodingKeys: String, CodingKey {
-        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript, proToolsOpenInsert, proToolsSelectPreset
+        case controlDeck, record, stopRecord, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript, proToolsOpenInsert, proToolsSelectPreset, proToolsTransport
         /// Only to recognise a step saved before the Export Queue was removed.
         case queueClips
     }
@@ -761,6 +770,7 @@ extension StepAction: Codable {
 
     enum ProToolsOpenInsertKeys: String, CodingKey { case track, slot }
     enum ProToolsSelectPresetKeys: String, CodingKey { case preset }
+    enum ProToolsTransportKeys: String, CodingKey { case command }
 
     enum CleanupKeys: String, CodingKey {
         case retentionDays
@@ -910,6 +920,9 @@ extension StepAction: Codable {
         } else if container.contains(.proToolsSelectPreset) {
             let nested = try container.nestedContainer(keyedBy: ProToolsSelectPresetKeys.self, forKey: .proToolsSelectPreset)
             self = .proToolsSelectPreset(preset: try nested.decodeIfPresent(String.self, forKey: .preset) ?? "")
+        } else if container.contains(.proToolsTransport) {
+            let nested = try container.nestedContainer(keyedBy: ProToolsTransportKeys.self, forKey: .proToolsTransport)
+            self = .proToolsTransport(command: try nested.decodeIfPresent(ProToolsTransportCommand.self, forKey: .command) ?? .play)
         } else if container.contains(.liveTranscription) {
             let nested = try container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
             let command = try nested.decodeIfPresent(LiveTranscriptionCommand.self, forKey: .command) ?? .start
@@ -1014,6 +1027,9 @@ extension StepAction: Codable {
         case .proToolsSelectPreset(let preset):
             var nested = container.nestedContainer(keyedBy: ProToolsSelectPresetKeys.self, forKey: .proToolsSelectPreset)
             try nested.encode(preset, forKey: .preset)
+        case .proToolsTransport(let command):
+            var nested = container.nestedContainer(keyedBy: ProToolsTransportKeys.self, forKey: .proToolsTransport)
+            try nested.encode(command, forKey: .command)
         case .liveTranscription(let command, let stopAfterMinutes):
             var nested = container.nestedContainer(keyedBy: LiveTranscriptionKeys.self, forKey: .liveTranscription)
             try nested.encode(command, forKey: .command)
@@ -1308,7 +1324,7 @@ struct Workflow: Identifiable, Codable, Hashable {
 
     /// True if any step needs the shared sync destination mounted.
     var needsDestinationMount: Bool {
-        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue, .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset].contains($0.kind) }
+        steps.contains { ![.format, .controlDeck, .wait, .notify, .triggerWorkflow, .webhook, .upload, .liveTranscription, .sendCue, .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset, .proToolsTransport].contains($0.kind) }
     }
 
     /// The destination configured on this workflow's Sync step. Falls back
