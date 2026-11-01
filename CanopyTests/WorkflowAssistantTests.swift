@@ -60,7 +60,7 @@ struct WorkflowAssistantTests {
 
     @Test func nameIsTrimmedAndDefaulted() {
         #expect(build([.offload], "offload", name: "  Test Flow ").workflow.name == "Test Flow")
-        #expect(build([.offload], "offload", name: "  ").workflow.name == "New Workflow")
+        #expect(build([.offload], "offload", name: "  ").workflow.name == "New Automation")
     }
 
     // MARK: Details read from the request

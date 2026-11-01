@@ -165,7 +165,7 @@ struct WorkflowTriggerTests {
     @Test func unknownWorkflowIsNotInvented() {
         let r = build([.notify], "after the other workflow finishes email me")
         #expect(r.workflow.triggers.isEmpty)
-        #expect(r.notes.contains { $0.contains("which workflow") })
+        #expect(r.notes.contains { $0.contains("which automation") })
     }
 
     @Test func workflowCannotBeStartedByItselfOrByAWorkflowItStarts() {
