@@ -68,6 +68,10 @@ struct WorkflowStepConfigSheet: View {
     @State private var appleScript = ""
     @State private var appleScriptTimeout = AppleScriptRunner.defaultTimeoutSeconds
     @State private var appleScriptTestState: AppleScriptTestState = .idle
+    @State private var proToolsTrack = ""
+    @State private var proToolsSlot = "A"
+    @State private var proToolsPreset = ""
+    @State private var proToolsTestState: AppleScriptTestState = .idle
     @State private var liveCommand: LiveTranscriptionCommand = .start
     @State private var liveStopAfterOn = false
     @State private var liveStopAfterMinutes = 90
@@ -182,6 +186,12 @@ struct WorkflowStepConfigSheet: View {
 
                 case .runAppleScript:
                     appleScriptFields
+
+                case .proToolsOpenInsert:
+                    proToolsInsertFields
+
+                case .proToolsSelectPreset:
+                    proToolsPresetFields
                 }
 
                 Section {
@@ -1114,6 +1124,52 @@ struct WorkflowStepConfigSheet: View {
         }
     }
 
+    private var proToolsInsertFields: some View {
+        Group {
+            TextField("Track name", text: $proToolsTrack)
+            Picker("Insert", selection: $proToolsSlot) {
+                ForEach(ProToolsRunner.insertSlots, id: \.self) { Text($0).tag($0) }
+            }
+            proToolsTestRow(disabled: proToolsTrack.trimmingCharacters(in: .whitespaces).isEmpty) {
+                try await ProToolsRunner.openInsert(track: proToolsTrack, slot: proToolsSlot)
+            }
+            Text("Opens the plugin window for that insert in Pro Tools' Mix window. The track name must match exactly. Canopy needs Accessibility permission (System Settings > Privacy & Security) the first time. Test does it for real.")
+                .font(.canopyCaption).foregroundStyle(.secondary)
+        }
+    }
+
+    private var proToolsPresetFields: some View {
+        Group {
+            TextField("Preset name", text: $proToolsPreset)
+            proToolsTestRow(disabled: proToolsPreset.trimmingCharacters(in: .whitespaces).isEmpty) {
+                try await ProToolsRunner.selectPreset(proToolsPreset)
+            }
+            Text("Picks that preset in the plugin window that is open in Pro Tools (put an Open Insert step before this one), then checks the plugin shows it. The name must match the preset menu exactly. Test does it for real.")
+                .font(.canopyCaption).foregroundStyle(.secondary)
+        }
+    }
+
+    private func proToolsTestRow(disabled: Bool, _ action: @escaping () async throws -> String) -> some View {
+        HStack {
+            Button("Test") {
+                proToolsTestState = .running
+                Task {
+                    do { proToolsTestState = .finished(String(try await action().prefix(200))) }
+                    catch { proToolsTestState = .failed(error.localizedDescription) }
+                }
+            }
+            .disabled(disabled || proToolsTestState == .running)
+            switch proToolsTestState {
+            case .idle:            EmptyView()
+            case .running:         ProgressView().controlSize(.small)
+            case .finished(let result):
+                Label(result.isEmpty ? "Finished" : result, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green).font(.canopyCaption).lineLimit(2)
+            case .failed(let why): Text(why).font(.canopyCaption).foregroundStyle(Color.orange).lineLimit(3)
+            }
+        }
+    }
+
     private func testAppleScript() {
         appleScriptTestState = .running
         let script = appleScript, timeout = appleScriptTimeout
@@ -1162,6 +1218,11 @@ struct WorkflowStepConfigSheet: View {
             controlCommand = command
         case .sendCue(let cue):
             cueRule = cue
+        case .proToolsOpenInsert(let track, let slot):
+            proToolsTrack = track
+            proToolsSlot = slot
+        case .proToolsSelectPreset(let preset):
+            proToolsPreset = preset
         case .runAppleScript(let script, let timeoutSeconds):
             appleScript = script
             appleScriptTimeout = timeoutSeconds
@@ -1256,6 +1317,10 @@ struct WorkflowStepConfigSheet: View {
             step.action = .controlDeck(command: controlCommand)
         case .sendCue:
             step.action = .sendCue(cueRule)
+        case .proToolsOpenInsert:
+            step.action = .proToolsOpenInsert(track: proToolsTrack.trimmingCharacters(in: .whitespacesAndNewlines), slot: proToolsSlot)
+        case .proToolsSelectPreset:
+            step.action = .proToolsSelectPreset(preset: proToolsPreset.trimmingCharacters(in: .whitespacesAndNewlines))
         case .runAppleScript:
             step.action = .runAppleScript(
                 script: appleScript.trimmingCharacters(in: .whitespacesAndNewlines),

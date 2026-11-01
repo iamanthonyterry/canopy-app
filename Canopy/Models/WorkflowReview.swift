@@ -26,6 +26,10 @@ enum WorkflowReview {
                 out.append(Item(severity: .warning, text: "Step \(n) (Send Webhook) has no URL."))
             case .runAppleScript(let script, _) where script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty:
                 out.append(Item(severity: .warning, text: "Step \(n) (Run AppleScript) has no script."))
+            case .proToolsOpenInsert(let track, _) where track.trimmingCharacters(in: .whitespaces).isEmpty:
+                out.append(Item(severity: .warning, text: "Step \(n) (Pro Tools: Open Insert) has no track name."))
+            case .proToolsSelectPreset(let preset) where preset.trimmingCharacters(in: .whitespaces).isEmpty:
+                out.append(Item(severity: .warning, text: "Step \(n) (Pro Tools: Select Preset) has no preset name."))
             case .notify(_, _, let recipients, _) where recipients.isEmpty:
                 out.append(Item(severity: .warning, text: "Step \(n) (Notification) has no recipients."))
             case .triggerWorkflow(let id, _, _) where id == nil:

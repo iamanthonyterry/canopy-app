@@ -348,6 +348,20 @@ final class WorkflowEngine: ObservableObject {
                 continue
             }
 
+            // The Pro Tools steps run once too: they drive the Pro Tools running on this Mac.
+            if case .proToolsOpenInsert(let track, let slot) = step.action {
+                await runProTools("Open insert \(slot) on \(track)", session: session) { try await ProToolsRunner.openInsert(track: track, slot: slot) }
+                session.endStep(step.id)
+                stepIndex += 1
+                continue
+            }
+            if case .proToolsSelectPreset(let preset) = step.action {
+                await runProTools("Select preset \(preset)", session: session) { try await ProToolsRunner.selectPreset(preset) }
+                session.endStep(step.id)
+                stepIndex += 1
+                continue
+            }
+
             // Live Transcription also runs once for the whole automation: it
             // controls this Mac's live transcript, not any one device.
             if case .liveTranscription(let command, let stopAfterMinutes) = step.action {
@@ -664,7 +678,7 @@ final class WorkflowEngine: ObservableObject {
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sendCue:
             break // handled once per run, before the per-deck fan-out — see `start`
-        case .runAppleScript:
+        case .runAppleScript, .proToolsOpenInsert, .proToolsSelectPreset:
             break // handled once per run, before the per-deck fan-out — see `start`
         case .sync(_, let verify, let deleteFromDevice):
             // Removing an original is only safe against a verified copy.
@@ -1917,6 +1931,18 @@ final class WorkflowEngine: ObservableObject {
             session.log(result.isEmpty ? "  📜 AppleScript finished" : "  📜 AppleScript finished: \(result.prefix(500))")
         } catch {
             session.log("  ⚠️ AppleScript failed: \(error.localizedDescription)")
+            session.errors += 1
+        }
+    }
+
+    // MARK: - Pro Tools steps
+
+    private func runProTools(_ what: String, session: WorkflowRunSession, _ action: () async throws -> String) async {
+        session.log("  🎚 Pro Tools: \(what)")
+        do {
+            _ = try await action()
+        } catch {
+            session.log("  ⚠️ Pro Tools step failed: \(error.localizedDescription)")
             session.errors += 1
         }
     }
