@@ -31,12 +31,53 @@ enum LiveTranscriptionCommand: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - Step Category
+// The folders the step palette groups step types into, in display order.
+enum StepCategory: String, CaseIterable, Identifiable {
+    case devices, files, video, content, showControl, flow
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .devices:     return "Devices"
+        case .files:       return "Files & Storage"
+        case .video:       return "Video"
+        case .content:     return "Transcripts & Content"
+        case .showControl: return "Show Control"
+        case .flow:        return "Flow & Alerts"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .devices:     return "externaldrive"
+        case .files:       return "folder"
+        case .video:       return "film"
+        case .content:     return "text.bubble"
+        case .showControl: return "slider.horizontal.3"
+        case .flow:        return "arrow.triangle.branch"
+        }
+    }
+}
+
 // MARK: - Step Kind
 // The catalog of step types users can drag into a workflow.
 enum StepKind: String, Codable, CaseIterable, Identifiable {
     case controlDeck, wait, createFolder, sync, convert, rename, transcribe, findClips, exportPosts, writeCopy, webhook, copyTo, upload, reframe, format, cleanup, notify, triggerWorkflow, liveTranscription, sendCue, runAppleScript, proToolsOpenInsert, proToolsSelectPreset
 
     var id: String { rawValue }
+
+    var category: StepCategory {
+        switch self {
+        case .controlDeck, .format: return .devices
+        case .createFolder, .sync, .copyTo, .upload, .rename, .cleanup: return .files
+        case .convert, .reframe: return .video
+        case .transcribe, .findClips, .exportPosts, .writeCopy, .liveTranscription: return .content
+        case .sendCue, .runAppleScript, .webhook, .proToolsOpenInsert, .proToolsSelectPreset: return .showControl
+        case .wait, .notify, .triggerWorkflow: return .flow
+        }
+    }
 
     var title: String {
         switch self {

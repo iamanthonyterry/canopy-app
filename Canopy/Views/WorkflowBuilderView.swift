@@ -22,6 +22,7 @@ struct WorkflowBuilderView: View {
     @State private var pickingCloudStoreFolder: CloudStore? = nil
     @State private var confirmingDiscard = false
     @State private var paletteQuery = ""
+    @State private var openCategories: Set<StepCategory> = []
     @State private var triggerZoneTargeted = false
 
     // Natural-language editing
@@ -200,8 +201,8 @@ struct WorkflowBuilderView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     if !paletteKinds.isEmpty {
                         paletteHeader("Steps", hint: "Drag into the automation, or click to add")
-                        ForEach(paletteKinds) { kind in
-                            stepTile(kind)
+                        ForEach(StepCategory.allCases) { category in
+                            stepFolder(category)
                         }
                     }
                     if !paletteModes.isEmpty {
@@ -230,6 +231,35 @@ struct WorkflowBuilderView: View {
             Text(hint).font(.canopyCaption2).foregroundStyle(.tertiary)
         }
         .padding(.vertical, 4)
+    }
+
+    /// One folder of steps. Collapsed until opened, but open whenever a search is active so matches show.
+    @ViewBuilder
+    private func stepFolder(_ category: StepCategory) -> some View {
+        let kinds = paletteKinds.filter { $0.category == category }
+        if !kinds.isEmpty {
+            let isOpen = !query.isEmpty || openCategories.contains(category)
+            Button {
+                if openCategories.contains(category) { openCategories.remove(category) } else { openCategories.insert(category) }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                    Image(systemName: category.icon).foregroundStyle(.secondary)
+                    Text(category.title).font(.canopySans(12, weight: .semibold))
+                    Spacer()
+                    Text("\(kinds.count)").font(.canopyCaption2).foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(!query.isEmpty)
+            if isOpen {
+                ForEach(kinds) { stepTile($0) }
+            }
+        }
     }
 
     private func stepTile(_ kind: StepKind) -> some View {

@@ -38,3 +38,11 @@ struct ProToolsStepTests {
         #expect(texts.contains { $0.contains("Select Preset") && $0.contains("no preset name") })
     }
 }
+
+@MainActor
+struct StepCategoryTests {
+    @Test func everyStepIsInAFolderAndEveryFolderIsUsed() {
+        let used = Set(StepKind.allCases.map(\.category))
+        #expect(used == Set(StepCategory.allCases))
+    }
+}
