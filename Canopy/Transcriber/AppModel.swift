@@ -70,6 +70,8 @@ final class AppModel: ObservableObject {
     private var heartbeatTask: Task<Void, Never>?
     /// Carries out "apply to device" jobs from the website for this campus, whether or not we're transcribing.
     private var deviceAgent: DeviceAgent?
+    /// Keeps this Mac's row on the website up to date (which campus it is on, and when it was last seen).
+    private var registryTask: Task<Void, Never>?
 
     let updates = UpdateManager()
     private var renameWatcher: AnyCancellable?
@@ -96,6 +98,7 @@ final class AppModel: ObservableObject {
         }
         connectControls()
         publishConnection()
+        startComputerRegistry()
         let agent = DeviceAgent(
             credentials: { [weak self] in await self?.deviceCredentials() ?? ("", "") },
             onResult: { message in Task { @MainActor in Notifier.post("Device update", message) } }
@@ -238,11 +241,16 @@ final class AppModel: ObservableObject {
             defer { signInBusy = false; signInTask = nil }
             do {
                 guard let site = URL(string: siteBase) else { throw ConnectError.badSite }
-                let result = try await ConnectFlow().run(ConnectRequest(app: .transcriber, want: .key, site: site))
+                let result = try await ConnectFlow().run(ConnectRequest(app: .canopy, want: [.session, .key], site: site))
                 guard let campus = result.campus else { throw ConnectError.badSite }
                 token = campus.key
                 settings.connectedTo = campus.campusName.isEmpty ? campus.campusID : campus.campusName
+                settings.campusID = campus.campusID
+                // The person's own sign-in is what records this Mac on its campus and lists the other computers.
+                // A church that can't hand one out still gets the campus key, as before.
+                if let grant = result.grant { await ComputerRegistry.shared.adopt(grant) }
                 apply()
+                startComputerRegistry()
                 NSApp.activate(ignoringOtherApps: true)
             } catch is CancellationError {
             } catch {
@@ -256,6 +264,9 @@ final class AppModel: ObservableObject {
     func disconnect() {
         token = ""
         settings.connectedTo = ""
+        settings.campusID = ""
+        stopComputerRegistry()
+        ComputerRegistry.shared.signOut()
         if running { stop() }
         SettingsStore.save(settings, token: token)
         publishConnection()
@@ -266,6 +277,27 @@ final class AppModel: ObservableObject {
     func publishConnection() {
         guard !FileTest.isSafeMode else { return }
         CampusConnection.shared.update(siteBase: siteBase, key: token, campusName: settings.connectedTo)
+    }
+
+    /// Records this Mac on the campus it is signed in to, and reads back the computers the person may see. Runs at
+    /// launch and every ten minutes, so the list shows which Macs are still around. Only with a person's sign-in: the
+    /// campus key alone doesn't say who is asking.
+    private func startComputerRegistry() {
+        stopComputerRegistry()
+        guard !FileTest.isSafeMode, !settings.campusID.isEmpty, AccountSessionStore.load() != nil else { return }
+        registryTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                await ComputerRegistry.shared.register(campusID: self.settings.campusID)
+                await ComputerRegistry.shared.refresh()
+                try? await Task.sleep(for: .seconds(600))
+            }
+        }
+    }
+
+    private func stopComputerRegistry() {
+        registryTask?.cancel()
+        registryTask = nil
     }
 
     func apply() {

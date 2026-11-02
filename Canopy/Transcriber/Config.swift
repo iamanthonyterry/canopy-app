@@ -7,6 +7,7 @@ nonisolated let defaultCorrections = "LifePoint => Lifepoint\nLife Point => Life
 nonisolated struct Settings: Codable, Equatable {
     var url = "https://churchlandingpage.rosesashumans.com/api/transcript"
     var connectedTo = ""           // "Church · Campus" shown after signing in through the website (empty = key typed by hand)
+    var campusID = ""              // the campus the key belongs to, so this Mac can be recorded on the website
     var inputs = [AudioInput()]    // every audio input being listened to
     var corrections = defaultCorrections  // one "heard => correct" per line, applied to every phrase
     var vocabulary = ""            // names and terms Whisper should expect (one per line or comma-separated)
@@ -66,6 +67,7 @@ nonisolated extension Settings {
         let d = Settings()
         url = try c.decodeIfPresent(String.self, forKey: .url) ?? d.url
         connectedTo = try c.decodeIfPresent(String.self, forKey: .connectedTo) ?? d.connectedTo
+        campusID = try c.decodeIfPresent(String.self, forKey: .campusID) ?? d.campusID
         if let list = try c.decodeIfPresent([AudioInput].self, forKey: .inputs), !list.isEmpty {
             inputs = list
         } else if let old = try? decoder.container(keyedBy: LegacyKeys.self) {

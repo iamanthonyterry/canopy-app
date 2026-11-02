@@ -2,8 +2,9 @@ import Foundation
 import Combine
 
 /// Which website and campus this Mac is connected to (the address and campus key set in Settings → Connections),
-/// and a way for the rest of the app to call the website's Mac-app endpoints with that key. The key is the only credential the
-/// app has: it belongs to a campus, not a person, so it keeps working on a Mac with nobody logged in.
+/// and a way for the rest of the app to call the website's Mac-app endpoints with that key. The key belongs to a campus,
+/// not a person, so it keeps working on a Mac with nobody logged in; the person's own sign-in (which the computers list
+/// needs) is kept separately by `ComputerRegistry`.
 @MainActor
 final class CampusConnection: ObservableObject {
     static let shared = CampusConnection()
