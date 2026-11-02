@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-/// A Mac whose Remote Host this Mac can view. The pairing code is a secret, so it lives in the Keychain.
+/// A Mac whose Remote Access this Mac can view. The pairing code is a secret, so it lives in the Keychain.
 struct SavedRemoteMac: Identifiable, Codable, Hashable {
     var id = UUID()
     var name: String

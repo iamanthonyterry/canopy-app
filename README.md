@@ -8,8 +8,9 @@ Canopy is a macOS menu bar app for church A/V teams. It does three jobs:
 2. **Automations.** Step-by-step jobs that run on a schedule, a trigger, or by hand:
    record on HyperDecks, offload, make proxies, rename, copy, clean up, format a
    drive, send email, start live transcription, send a cue, and more.
-3. **Remote Host.** Lets a paired iPad running TailDesk see and control this Mac.
-   Canopy can also view and control another Mac that has Remote Host on
+3. **Remote Access.** Lets a paired iPad see and control this Mac. Rotate the
+   pairing code in Settings → Connections to revoke a code you shared or a device
+   you lost, or reset the Mac's identity so old codes can't find it at all. Canopy can also view and control another Mac that has Remote Access on
    (Settings → Connections → View another Mac).
 
 Canopy has no Dock icon. Everything is in the menu bar and the Settings window.
@@ -26,7 +27,7 @@ Canopy has no Dock icon. Everything is in the menu bar and the Settings window.
 - **Settings → Devices:** HyperDecks, network storage (Cloud Store, Synology NAS)
   and local folders, found by scan or added by hand; file naming and performance.
 - **Settings → Connections:** the church website, Planning Center, email, Remote
-  Host, OSC/MIDI control, live alerts and on-device AI.
+  Access, OSC/MIDI control, live alerts and on-device AI.
 
 Triggers for an automation: daily or one-time schedule, Planning Center service
 time, OSC message, MIDI message, voice cue, or another automation.
@@ -44,7 +45,7 @@ time, OSC message, MIDI message, voice cue, or another automation.
 - `Canopy/Support/` — services that do the work (transfer, conversion, scheduling,
   monitoring, alerts, OSC/MIDI, email)
 - `Canopy/Views/` — SwiftUI Settings pages and the automation builder
-- `Canopy/RemoteHost/` — screen streaming and input for TailDesk, and the viewer for other Macs
+- `Canopy/RemoteHost/` — screen streaming and input for Remote Access, and the viewer for other Macs
 - `ChurchKit/` — local Swift package shared with the church website tools
 - `docs/` — current plans; `docs/archive/` holds finished or outdated ones
 

@@ -4,7 +4,7 @@ import CoreMedia
 import Foundation
 import IrohLib
 
-/// A pairing code as Remote Host shows it: `ticket|token`.
+/// A pairing code as Remote Access shows it: `ticket|token`.
 nonisolated struct RemotePairingCode: Equatable, Sendable {
     var ticket: String
     var token: String
@@ -40,7 +40,7 @@ nonisolated enum RemoteScreenGeometry {
 }
 
 /// Viewer for another Mac's Remote Host: H.265 video in, pointer and keyboard events out. The Mac-side twin of
-/// TailDesk's StreamSession; both speak the protocol in RemoteProtocol.swift.
+/// Remote Access's StreamSession; both speak the protocol in RemoteProtocol.swift.
 @MainActor
 final class RemoteViewerSession: ObservableObject {
     enum Status: Equatable { case idle, connecting, connected, failed(String) }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Walks through the macOS permissions Remote Host needs before it turns on.
+/// Walks through the macOS permissions Remote Access needs before it turns on.
 struct RemoteHostSetupView: View {
     @StateObject private var perms = RemoteHostPermissions()
     @State private var askedScreen = false
@@ -10,7 +10,7 @@ struct RemoteHostSetupView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Set up Remote Host").font(.canopyTitle)
+                Text("Set up Remote Access").font(.canopyTitle)
                 Text("Two macOS permissions let your iPad see this Mac and control it. Canopy can't turn them on for you; you approve each one in System Settings.")
                     .font(.canopyBody).foregroundStyle(.secondary)
             }
@@ -35,12 +35,12 @@ struct RemoteHostSetupView: View {
             Divider()
 
             HStack {
-                Text(perms.allGranted ? "All set. Canopy will show a pairing code to paste into TailDesk."
+                Text(perms.allGranted ? "All set. Canopy will show a pairing code to paste into Remote Access."
                                       : "Turn on both to continue.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
                 Spacer()
                 Button("Cancel", action: onCancel)
-                Button("Turn on Remote Host", action: onFinish)
+                Button("Turn on Remote Access", action: onFinish)
                     .buttonStyle(.canopyPrimary)
                     .disabled(!perms.allGranted)
             }

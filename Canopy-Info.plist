@@ -15,7 +15,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>Canopy streams this Mac's screen to your paired TailDesk device when Remote Host is on.</string>
+	<string>Canopy streams this Mac's screen to your paired device when Remote Access is on.</string>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>Canopy runs the AppleScripts you add to an automation, which can control other apps.</string>
 	<key>NSMicrophoneUsageDescription</key>

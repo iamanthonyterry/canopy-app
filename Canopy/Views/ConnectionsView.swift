@@ -17,6 +17,7 @@ struct ConnectionsView: View {
                 PlanningCenterConnectionCard(model: model)
                 RemoteHostCard()
                 RemoteViewerCard()
+                ComputersCard(model: model)
                 Spacer(minLength: 24)
             }
             .padding(.vertical)
@@ -118,13 +119,15 @@ private struct PlanningCenterConnectionCard: View {
     }
 }
 
-// MARK: Remote Host (TailDesk)
+// MARK: Remote Access
 
 private struct RemoteHostCard: View {
     @ObservedObject private var host = RemoteHostService.shared
     @State private var showToken = false
     @StateObject private var perms = RemoteHostPermissions()
     @State private var showSetup = false
+    @State private var confirmRotate = false
+    @State private var confirmReset = false
 
     private func copy(_ text: String) {
         NSPasteboard.general.clearContents()
@@ -134,10 +137,10 @@ private struct RemoteHostCard: View {
     var body: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                ConnectionHeader(title: "Remote Host (TailDesk)", icon: "display", connected: host.isRunning,
+                ConnectionHeader(title: "Remote Access", icon: "display", connected: host.isRunning,
                                  detail: "Lets your paired iPad see and control this Mac from anywhere")
                 // Off until you turn it on; turning it on first checks the macOS permissions.
-                Toggle("Allow TailDesk to connect", isOn: Binding(get: { host.isRunning }, set: { on in
+                Toggle("Allow remote devices to connect", isOn: Binding(get: { host.isRunning }, set: { on in
                     if !on { host.setEnabled(false) }
                     else if perms.allGranted { host.setEnabled(true) }
                     else { showSetup = true }
@@ -154,6 +157,8 @@ private struct RemoteHostCard: View {
                                     .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
                                 Button(showToken ? "Hide" : "Show") { showToken.toggle() }
                                 Button("Copy") { copy(host.pairingCode) }
+                                Button("Rotate…") { confirmRotate = true }
+                                    .help("Replace this code with a new one")
                             }
                         }
                     }
@@ -166,8 +171,22 @@ private struct RemoteHostCard: View {
                             Button("Fix…") { showSetup = true }
                         }
                     }
-                    Text("Paste the pairing code into TailDesk's Add Mac screen. It works from any network with nothing to install. Keep the code private: anyone with it can control this Mac.")
+                    Text("Paste the pairing code into Remote Access's Add Mac screen. It works from any network with nothing to install. Keep the code private: anyone with it can control this Mac. Rotate it to make a new code if it was shared or a device was lost; the old code stops working.")
                         .font(.canopyCaption).foregroundStyle(.secondary)
+                }
+                // Available whether or not the host is on: handing the Mac on is often the moment it is off.
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.secondary)
+                    Text("Reset identity gives this Mac a new network identity and a new code, so codes from before can no longer find it.")
+                        .font(.canopyCaption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Reset Identity…") { confirmReset = true }
+                        .confirmationDialog("Reset this Mac's remote identity?", isPresented: $confirmReset, titleVisibility: .visible) {
+                            Button("Reset Identity", role: .destructive) { host.resetIdentity() }
+                            Button("Cancel", role: .cancel) {}
+                        } message: {
+                            Text("Every paired device loses access and has to be added again with the new code. This can't be undone.")
+                        }
                 }
             }
             .padding(.top, 6)
@@ -179,6 +198,12 @@ private struct RemoteHostCard: View {
             RemoteHostSetupView(
                 onFinish: { host.setEnabled(true); showSetup = false },
                 onCancel: { showSetup = false })
+        }
+        .confirmationDialog("Rotate the pairing code?", isPresented: $confirmRotate, titleVisibility: .visible) {
+            Button("Rotate", role: .destructive) { host.rotatePairingCode() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Any device using the old code is disconnected. Copy the new code to your iPad; it will not reconnect on its own.")
         }
     }
 }
@@ -194,7 +219,7 @@ private struct RemoteViewerCard: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
                 ConnectionHeader(title: "View another Mac", icon: "rectangle.on.rectangle", connected: !store.macs.isEmpty,
-                                 detail: "See and control a Mac that has Remote Host turned on")
+                                 detail: "See and control a Mac that has Remote Access turned on")
                 ForEach(store.macs) { mac in
                     HStack {
                         Image(systemName: "desktopcomputer").foregroundStyle(.secondary)
@@ -209,13 +234,79 @@ private struct RemoteViewerCard: View {
                     Button("Add Mac…") { showAdd = true }
                     Spacer()
                 }
-                Text("On the other Mac, turn on Remote Host in Settings → Connections and copy its pairing code. Anyone with that code can control that Mac.")
+                Text("On the other Mac, turn on Remote Access in Settings → Connections and copy its pairing code. Anyone with that code can control that Mac.")
                     .font(.canopyCaption).foregroundStyle(.secondary)
             }
             .padding(.top, 6)
         }
         .padding(.horizontal)
         .sheet(isPresented: $showAdd) { AddRemoteMacSheet(isPresented: $showAdd) }
+    }
+}
+
+// MARK: Computers on your campuses
+
+private struct ComputersCard: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject private var registry = ComputerRegistry.shared
+    @ObservedObject private var connection = CampusConnection.shared
+
+    var body: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 10) {
+                ConnectionHeader(title: "Computers", icon: "desktopcomputer", connected: registry.signedIn,
+                                 detail: "Macs signed in to the website, and the campus each one is set to")
+                if !connection.isConnected {
+                    Text("Connect this Mac to a campus first, then sign in with the website.")
+                        .font(.canopyCaption).foregroundStyle(.secondary)
+                } else if !registry.signedIn {
+                    Button("Sign in with website…") { model.signInWithWebsite() }
+                        .buttonStyle(.canopyPrimary)
+                        .disabled(model.signInBusy || model.running)
+                    Text("Signing in records this Mac on its campus, and shows the other computers your account can access.")
+                        .font(.canopyCaption).foregroundStyle(.secondary)
+                } else if registry.loading && registry.computers.isEmpty {
+                    ProgressView().controlSize(.small)
+                } else if registry.computers.isEmpty {
+                    Text("No computers have signed in yet. Each Mac appears here the first time it signs in on one of your campuses.")
+                        .font(.canopyCaption).foregroundStyle(.secondary)
+                } else {
+                    ForEach(registry.computers) { computer in row(computer) }
+                }
+                if let error = registry.error {
+                    Text(error).font(.canopyCaption).foregroundStyle(.orange)
+                }
+                HStack {
+                    Button("Refresh") { Task { await registry.refresh() } }
+                        .disabled(registry.loading || !registry.signedIn)
+                    Spacer()
+                    if let origin = connection.origin { Link("Open website", destination: origin).font(.canopyCaption) }
+                }
+            }
+            .padding(.top, 6)
+        }
+        .padding(.horizontal)
+        .task { if registry.signedIn { await registry.refresh() } }
+    }
+
+    private func row(_ computer: RegisteredComputer) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "desktopcomputer").foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(computer.name)
+                HStack(spacing: 6) {
+                    Text(computer.campusName)
+                    if let seen = computer.lastSeen {
+                        Text("· \(seen, format: .relative(presentation: .named))")
+                    }
+                }
+                .font(.canopyCaption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            if computer.id == ComputerRegistry.deviceID {
+                Text("This Mac").font(.canopyCaption).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

@@ -3,7 +3,7 @@ import Foundation
 import IrohLib
 import Security
 
-/// Lets a paired TailDesk viewer see and control this Mac. Off by default; turn on with the
+/// Lets a paired Remote Access viewer see and control this Mac. Off by default; turn on with the
 /// `remoteHostEnabled` setting.
 ///
 /// Viewers connect through Iroh: peer-to-peer with a relay fallback, so it works from any network with nothing
@@ -12,9 +12,11 @@ import Security
 final class RemoteHostService: ObservableObject {
     static let shared = RemoteHostService()
     static let enabledKey = "remoteHostEnabled"
+    /// Wire name agreed with the viewer app. Kept as `taildesk` after the rename to Remote Access so
+    /// already-installed apps still connect.
     nonisolated static let alpn = Data("taildesk/stream/1".utf8)
-    private static let tokenKey = "remoteHostToken"
-    private static let irohKeyKey = "remoteHostIrohKey"
+    static let tokenKey = "remoteHostToken"
+    static let irohKeyKey = "remoteHostIrohKey"
 
     @Published private(set) var isRunning = false
     /// The Iroh ticket for this Mac, once the endpoint is online. Empty until then.
@@ -24,25 +26,72 @@ final class RemoteHostService: ObservableObject {
     private var acceptTask: Task<Void, Never>?
     private var viewer: Viewer?
     private let encoder = ScreenEncoder()
+    private let secrets: RemoteHostSecrets
+    private let makeToken: @Sendable () -> String
 
     /// The pairing token the viewer must present. Created once, kept in the Keychain.
-    var pairingToken: String {
-        if let t = KeychainStore.get(key: Self.tokenKey) { return t }
+    @Published private(set) var pairingToken = ""
+
+    /// What to type into Remote Access: `ticket|token`. Empty until the ticket is ready.
+    var pairingCode: String { irohTicket.isEmpty ? "" : "\(irohTicket)|\(pairingToken)" }
+
+    init(secrets: RemoteHostSecrets = KeychainRemoteHostSecrets(),
+         makeToken: @escaping @Sendable () -> String = { RemoteHostService.randomToken() }) {
+        self.secrets = secrets
+        self.makeToken = makeToken
+        pairingToken = secrets.get(Self.tokenKey) ?? ""
+    }
+
+    /// 18 random bytes in base64url: unguessable, and short enough to carry inside a pairing code.
+    nonisolated static func randomToken() -> String {
         var bytes = [UInt8](repeating: 0, count: 18)
         _ = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
-        let t = Data(bytes).base64EncodedString().replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "+", with: "-")
-        KeychainStore.set(t, key: Self.tokenKey)
+        return Data(bytes).base64EncodedString().replacingOccurrences(of: "/", with: "_").replacingOccurrences(of: "+", with: "-")
+    }
+
+    /// Reads the saved token, or makes and saves one the first time it is needed.
+    @discardableResult
+    private func ensurePairingToken() -> String {
+        if !pairingToken.isEmpty { return pairingToken }
+        let t = makeToken()
+        secrets.set(t, for: Self.tokenKey)
+        pairingToken = t
         return t
     }
 
-    /// What to type into TailDesk: `ticket|token`. Empty until the ticket is ready.
-    var pairingCode: String { irohTicket.isEmpty ? "" : "\(irohTicket)|\(pairingToken)" }
+    /// Replaces the pairing token, so a code copied earlier stops working. The iPad using the old code is
+    /// disconnected, because the running viewer holds the token it authenticated with.
+    func rotatePairingCode() {
+        let t = makeToken()
+        secrets.set(t, for: Self.tokenKey)
+        pairingToken = t
+        disconnectViewer()
+    }
+
+    private func disconnectViewer() {
+        guard let v = viewer else { return }
+        viewer = nil
+        v.close()
+        encoder.stop()
+    }
+
+    /// Replaces the Mac's Iroh identity along with the pairing token, so a code copied earlier can no longer
+    /// even find this Mac on the network. The endpoint is rebound to a fresh key, so every paired device has
+    /// to be added again with the new code.
+    func resetIdentity() {
+        let wasRunning = isRunning
+        if wasRunning { stop() }
+        secrets.delete(Self.irohKeyKey)
+        irohTicket = ""
+        rotatePairingCode()   // a new identity deserves a new token too
+        if wasRunning { start() }
+    }
 
     /// The Mac's Iroh identity, kept so the pairing code stays the same between launches.
     private func irohSecretKey() -> Data {
-        if let s = KeychainStore.get(key: Self.irohKeyKey), let d = Data(base64Encoded: s), d.count == 32 { return d }
+        if let s = secrets.get(Self.irohKeyKey), let d = Data(base64Encoded: s), d.count == 32 { return d }
         let d = SecretKey.generate().toBytes()
-        KeychainStore.set(d.base64EncodedString(), key: Self.irohKeyKey)
+        secrets.set(d.base64EncodedString(), for: Self.irohKeyKey)
         return d
     }
 
@@ -59,7 +108,7 @@ final class RemoteHostService: ObservableObject {
 
     func start() {
         guard !isRunning else { return }
-        _ = pairingToken   // create it now so it is there to read in Settings
+        ensurePairingToken()   // create it now so it is there to read in Settings
         let key = irohSecretKey()
         isRunning = true
 

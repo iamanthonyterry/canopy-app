@@ -1,6 +1,6 @@
 import Foundation
 
-/// Wire format shared by Canopy (host) and TailDesk (viewer). Keep the two copies identical.
+/// Wire format shared by Canopy (host) and Remote Access (viewer). Keep the two copies identical.
 /// A frame is: u32 big-endian length (type byte + payload), u8 type, payload.
 nonisolated enum RemoteMsg: UInt8, Sendable {
     case hello = 1    // viewer -> host, JSON RemoteHello
